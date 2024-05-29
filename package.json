@@ -1,5 +1,5 @@
 {
-  "version": "0.1.0-alpha.13",
+  "version": "0.1.0-alpha.35",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -45,12 +45,18 @@
     }
   ],
   "devDependencies": {
+    "@eslint/js": "^9.1.1",
     "@size-limit/preset-small-lib": "^11.1.2",
+    "eslint": "^9.1.1",
+    "eslint-plugin-tsdoc": "^0.2.17",
+    "globals": "^15.1.0",
     "husky": "^9.0.11",
+    "prettier": "3.2.5",
     "size-limit": "^11.1.2",
     "tsdx": "^0.14.1",
     "tslib": "^2.6.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "typescript-eslint": "^7.8.0"
   },
   "dependencies": {
     "@reduxjs/toolkit": "^2.2.3"
