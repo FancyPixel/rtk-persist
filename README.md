@@ -15,7 +15,6 @@ Replace `createSlice` and `configureStore` with `persistSlice` and `configurePer
 
 ```typescript
 // slice.ts
-
 const slice = persistSlice(...sliceOptions);
 
 // store.ts
