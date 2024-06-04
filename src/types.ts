@@ -14,3 +14,5 @@ export interface StorageHandler {
   getItem: (key: string) => Promise<string | null> | (string | null);
   removeItem: (key: string) => Promise<void> | void;
 }
+
+export const DEFAULT_INIT_ACTION_TYPE = '@@INIT-PERSIST';

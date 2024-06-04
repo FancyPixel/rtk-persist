@@ -9,9 +9,9 @@ import {
 } from '@reduxjs/toolkit';
 import Settings from './settings';
 import { Builder } from './extraReducersBuilder';
-import { DEFAULT_INIT_ACTION_TYPE } from './store';
 import { listenerMiddleware } from './middleware';
 import UpdatedAtHelper from './updatedAtHelper';
+import { DEFAULT_INIT_ACTION_TYPE } from './types';
 
 const getStorageName = (sliceName: string) => `persisted-storage-${sliceName}`;
 

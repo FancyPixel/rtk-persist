@@ -1,10 +1,13 @@
-import { configureStore, ConfigureStoreOptions } from "@reduxjs/toolkit";
+import { Action, configureStore, ConfigureStoreOptions, StoreEnhancer, Tuple, UnknownAction } from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./middleware";
-import { StorageHandler } from "./types";
+import { DEFAULT_INIT_ACTION_TYPE, StorageHandler } from "./types";
 import Settings from "./settings";
 import { getStoredState } from "./slice";
+import { Middlewares } from "@reduxjs/toolkit/dist/configureStore";
+import { ThunkMiddlewareFor } from "@reduxjs/toolkit/dist/getDefaultMiddleware";
+import { ExtractDispatchExtensions } from "@reduxjs/toolkit/dist/tsHelpers";
 
-export const DEFAULT_INIT_ACTION_TYPE = '@@INIT-PERSIST';
+type Enhancers = ReadonlyArray<StoreEnhancer>;
 
 /**
  * A friendly incapsulation of the standard RTK `configureStore()` function
@@ -21,7 +24,12 @@ export const DEFAULT_INIT_ACTION_TYPE = '@@INIT-PERSIST';
  *
  * @public
  */
-export const configurePersistedStore = (options: ConfigureStoreOptions, storageHandler: StorageHandler) => {
+export const configurePersistedStore = <S = any, A extends Action = UnknownAction, M extends Tuple<Middlewares<S>> = Tuple<[ThunkMiddlewareFor<S>]>, E extends Tuple<Enhancers> = Tuple<[
+  StoreEnhancer<{
+      dispatch: ExtractDispatchExtensions<M>;
+  }>,
+  StoreEnhancer
+]>, P = S>(options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>, storageHandler: StorageHandler) => {
   // Set the default storage handler
   Settings.storageHandler = storageHandler;
 
@@ -29,19 +37,22 @@ export const configurePersistedStore = (options: ConfigureStoreOptions, storageH
   const persistedStore = configureStore({
     ...options,
     middleware: (getDefaultMiddleware) => {
-      if (options.middleware) return options.middleware(getDefaultMiddleware).concat(listenerMiddleware.middleware);
-      else return getDefaultMiddleware().concat(listenerMiddleware.middleware);
+      const m: Tuple<Middlewares<S>> = options.middleware?.(getDefaultMiddleware) || getDefaultMiddleware();
+      return m.concat(listenerMiddleware.middleware);
     }
   });
 
-  Object.keys(persistedStore.getState()).forEach((k) => {
-    getStoredState(k).then((initialState) => {
-      persistedStore.dispatch({
-        type: `${k}\\${DEFAULT_INIT_ACTION_TYPE}`,
-        payload: initialState,
+  const state = persistedStore.getState();
+  if (state && typeof state === 'object') {
+    Object.keys(state).forEach((k) => {
+      getStoredState(k).then((initialState) => {
+        persistedStore.dispatch({
+          type: `${k}\\${DEFAULT_INIT_ACTION_TYPE}`,
+          payload: initialState,
+        } as any);
       });
     });
-  });
+  }
 
   return persistedStore;
 }
