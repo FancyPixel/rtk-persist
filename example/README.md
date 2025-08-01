@@ -10,7 +10,7 @@ Use this project to understand the library's features or as a sandbox for testin
 
 1.  **Clone the repository** (if you haven't already):
     ```bash
-    git clone [https://github.com/FancyPixel/rtk-persist.git](https://github.com/FancyPixel/rtk-persist.git)
+    git clone https://github.com/FancyPixel/rtk-persist.git
     ```
 
 2.  **Navigate to the example app directory**:
