@@ -135,11 +135,11 @@ export const createPersistedSlice: <
   const slice = createSlice({
     ...sliceOptions,
     extraReducers: builder => {
-      builder.addMatcher(({ type }) => type === `${sliceOptions.name}\\${DEFAULT_INIT_ACTION_TYPE}`, (_state, action: PayloadAction<SliceState | null>): void | SliceState => {
-        if (action.payload) return action.payload;
-      });
       const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       sliceOptions.extraReducers?.(b);
+      b.builder.addMatcher(({ type }) => type === `${sliceOptions.name}\\${DEFAULT_INIT_ACTION_TYPE}`, (_state, action: PayloadAction<SliceState | null>): void | SliceState => {
+        if (action.payload) return action.payload;
+      });
     },
   });
 

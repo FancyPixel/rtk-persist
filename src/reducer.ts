@@ -130,11 +130,11 @@ export const createPersistedReducer: <ReducerName extends string, S extends NotF
    *
    */
   const reducer = createReducer(initialState, builder => {
-    builder.addMatcher(({ type }) => type === `${reducerName}\\${DEFAULT_INIT_ACTION_TYPE}`, (_state, action: PayloadAction<S | null>): void | S => {
-      if (action.payload) return action.payload;
-    });
     const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     mapOrBuilderCallback(b);
+    b.builder.addMatcher(({ type }) => type === `${reducerName}\\${DEFAULT_INIT_ACTION_TYPE}`, (_state, action: PayloadAction<S | null>): void | S => {
+      if (action.payload) return action.payload;
+    });
   });
 
   /**
