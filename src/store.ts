@@ -1,13 +1,8 @@
 import { Action, configureStore, ConfigureStoreOptions, StoreEnhancer, Tuple, UnknownAction } from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./middleware";
-import { DEFAULT_INIT_ACTION_TYPE, StorageHandler } from "./types";
 import Settings from "./settings";
 import { getStoredState } from "./slice";
-import { Middlewares } from "@reduxjs/toolkit/dist/configureStore";
-import { ThunkMiddlewareFor } from "@reduxjs/toolkit/dist/getDefaultMiddleware";
-import { ExtractDispatchExtensions } from "@reduxjs/toolkit/dist/tsHelpers";
-
-type Enhancers = ReadonlyArray<StoreEnhancer>;
+import { DEFAULT_INIT_ACTION_TYPE, Enhancers, ExtractDispatchExtensions, Middlewares, StorageHandler, ThunkMiddlewareFor } from "./types";
 
 /**
  * A friendly incapsulation of the standard RTK `configureStore()` function

@@ -7,11 +7,11 @@ import {
   SliceCaseReducers,
   SliceSelectors,
 } from '@reduxjs/toolkit';
-import Settings from './settings';
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
-import UpdatedAtHelper from './updatedAtHelper';
+import Settings from './settings';
 import { DEFAULT_INIT_ACTION_TYPE } from './types';
+import UpdatedAtHelper from './updatedAtHelper';
 
 const getStorageName = (sliceName: string) => `persisted-storage-${sliceName}`;
 
@@ -146,10 +146,9 @@ export const createPersistedSlice: <
   /**
    * Creates the slice using the default options passed by the user.
    *
-   * We add the default state the attribute sliceStorageLastUpdateAt that tracks
-   * when a change happens only on the specific state slice.
+   * Extends the default extra reducer builder to update a stored var
+   * the tracks the last time the slice was updated.
    *
-   * We then extend each extra readucer to update sliceStorageLastUpdateAt.
    */
   const slice = createSlice({
     ...sliceOptions,
@@ -196,7 +195,6 @@ export const createPersistedSlice: <
     },
   });
 
-  // TODO
   startAppListening({
     type: `${slice.name}/${DEFAULT_INIT_ACTION_TYPE}`,
     effect: () => {

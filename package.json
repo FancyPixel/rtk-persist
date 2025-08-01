@@ -11,17 +11,17 @@
     "node": ">=10"
   },
   "scripts": {
-    "start": "tsdx watch",
-    "build": "tsdx build",
-    "test": "tsdx test",
-    "prepare": "tsdx build",
+    "start": "dts watch",
+    "build": "dts build",
+    "test": "dts test",
+    "prepare": "dts build",
     "size": "size-limit",
     "analyze": "size-limit --why"
   },
   "peerDependencies": {},
   "husky": {
     "hooks": {
-      "pre-commit": "tsdx lint"
+      "pre-commit": "dts lint"
     }
   },
   "prettier": {
@@ -44,21 +44,24 @@
     }
   ],
   "devDependencies": {
-    "@eslint/js": "^9.1.1",
-    "@size-limit/preset-small-lib": "^11.1.2",
-    "eslint": "^9.1.1",
-    "eslint-config-react-app": "^5.2.1",
-    "eslint-plugin-tsdoc": "^0.2.17",
-    "globals": "^15.1.0",
-    "husky": "^9.0.11",
-    "prettier": "3.2.5",
-    "size-limit": "^11.1.2",
-    "tsdx": "^0.14.1",
-    "tslib": "^2.6.2",
-    "typescript": "^5.4.5",
-    "typescript-eslint": "^7.8.0"
+    "@eslint/eslintrc": "^3.3.1",
+    "@eslint/js": "^9.31.0",
+    "@size-limit/preset-small-lib": "^11.2.0",
+    "eslint": "^9.31.0",
+    "eslint-plugin-tsdoc": "^0.4.0",
+    "globals": "^16.3.0",
+    "husky": "^9.1.7",
+    "prettier": "3.6.2",
+    "size-limit": "^11.2.0",
+    "dts-cli": "^2.0.5",
+    "tslib": "^2.8.1",
+    "typescript": "^5.8.3",
+    "typescript-eslint": "^8.38.0"
   },
   "dependencies": {
-    "@reduxjs/toolkit": "^2.2.3"
-  }
+    "@reduxjs/toolkit": "^2.8.2"
+  },
+  "resolutions": {
+		"@types/minimatch": "5.1.2"
+	}
 }

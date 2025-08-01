@@ -1,4 +1,4 @@
-import { ActionReducerMapBuilder, CaseReducer, Action, Draft } from "@reduxjs/toolkit";
+import { Action, ActionReducerMapBuilder, CaseReducer, Draft } from "@reduxjs/toolkit";
 
 /**
  * Extension of a reducer that invokes a callback every time
@@ -13,8 +13,8 @@ const persistReducer = <SliceState>(r: CaseReducer<SliceState, Action>, onStateU
 };
 
 /**
- * A builder for an action <-> reducer map updating the attribute
- * sliceStorageLastUpdateAt whenever the state is changed.
+ * A builder for an action <-> reducer map updating the stored
+ * var that tracks whenever a slice state is changed.
  *
  * @param builder The builder of the extraReducers
  * @param onStateUpdate The callback to invoke when the state is changed

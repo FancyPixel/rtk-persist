@@ -1,3 +1,5 @@
+import { ActionCreatorInvariantMiddlewareOptions, ImmutableStateInvariantMiddlewareOptions, Middleware, SerializableStateInvariantMiddlewareOptions, StoreEnhancer, ThunkMiddleware, Tuple, UnknownAction } from "@reduxjs/toolkit";
+
 /**
  * This is the description of the storage handler used to persist the data
  *
@@ -16,3 +18,28 @@ export interface StorageHandler {
 }
 
 export const DEFAULT_INIT_ACTION_TYPE = '@@INIT-PERSIST';
+
+/**
+ * Defaults types not exported by the library.
+ */
+export type Enhancers = ReadonlyArray<StoreEnhancer>;
+export type Middlewares<S> = ReadonlyArray<Middleware<{}, S>>;
+export interface ThunkOptions<E = any> {
+    extraArgument: E;
+}
+export interface GetDefaultMiddlewareOptions {
+    thunk?: boolean | ThunkOptions;
+    immutableCheck?: boolean | ImmutableStateInvariantMiddlewareOptions;
+    serializableCheck?: boolean | SerializableStateInvariantMiddlewareOptions;
+    actionCreatorCheck?: boolean | ActionCreatorInvariantMiddlewareOptions;
+}
+export type ThunkMiddlewareFor<S, O extends GetDefaultMiddlewareOptions = {}> = O extends {
+    thunk: false;
+} ? never : O extends {
+    thunk: {
+        extraArgument: infer E;
+    };
+} ? ThunkMiddleware<S, UnknownAction, E> : ThunkMiddleware<S, UnknownAction>;
+export type IsAny<T, True, False = never> = true | false extends (T extends never ? true : false) ? True : False;
+export type ExtractDispatchFromMiddlewareTuple<MiddlewareTuple extends readonly any[], Acc extends {}> = MiddlewareTuple extends [infer Head, ...infer Tail] ? ExtractDispatchFromMiddlewareTuple<Tail, Acc & (Head extends Middleware<infer D> ? IsAny<D, {}, D> : {})> : Acc;
+export type ExtractDispatchExtensions<M> = M extends Tuple<infer MiddlewareTuple> ? ExtractDispatchFromMiddlewareTuple<MiddlewareTuple, {}> : M extends ReadonlyArray<Middleware> ? ExtractDispatchFromMiddlewareTuple<[...M], {}> : never;
