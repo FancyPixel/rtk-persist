@@ -6,7 +6,6 @@
 
 The library works by wrapping standard Redux Toolkit functions, adding persistence logic without changing the way you write your reducers or actions.
 
-***
 
 ## ✨ Features
 
@@ -17,7 +16,6 @@ The library works by wrapping standard Redux Toolkit functions, adding persisten
 * **TypeScript Support**: Fully typed to ensure a great developer experience.
 * **Minimal Footprint**: Extremely lightweight with a production size under 10 KB.
 
-***
 
 ## ⚙️ Installation
 
@@ -35,7 +33,6 @@ npm install --save rtk-persist
 
 The package has a peer dependency on `@reduxjs/toolkit`.
 
-***
 
 ## 🚀 Quick Start
 
@@ -143,7 +140,6 @@ export type RootState = ReturnType<typeof store.getState>;
 export type AppDispatch = typeof store.dispatch;
 ```
 
-***
 
 ## 🛠️ API
 
@@ -167,7 +163,6 @@ A wrapper around RTK's `configureStore`.
 * **`storeOptions`**: The standard `ConfigureStoreOptions` object.
 * **`storageHandler`**: A storage object that implements `getItem`, `setItem`, and `removeItem`.
 
-***
 
 ## ❤️ Author
 
@@ -175,7 +170,6 @@ This library is authored and maintained by **[Fancy Pixel srl](https://www.fancy
 
 This library was crafted from our daily experiences building modern web and mobile applications. Contributions are welcome!
 
-***
 
 ## 📄 License
 
