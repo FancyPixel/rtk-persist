@@ -1,7 +1,9 @@
+import { createPersistedReducer } from './reducer';
 import { createPersistedSlice } from "./slice";
 import { configurePersistedStore } from "./store";
 
 export {
-  createPersistedSlice,
   configurePersistedStore,
+  createPersistedReducer,
+  createPersistedSlice
 };

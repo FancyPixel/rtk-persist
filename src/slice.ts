@@ -12,26 +12,7 @@ import { listenerMiddleware } from './middleware';
 import Settings from './settings';
 import { DEFAULT_INIT_ACTION_TYPE } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-
-const getStorageName = (sliceName: string) => `persisted-storage-${sliceName}`;
-
-/**
- * Return the stored data of a slice if saved
- *
- * @returns The stored state of the slice if saved
- *
- * @public
- */
-export async function getStoredState<T>(sliceName: string): Promise<Partial<T> | null> {
-  try {
-    const storageJson = (await Settings.storageHandler.getItem(getStorageName(sliceName)));
-    if (!storageJson) return null;
-    return JSON.parse(storageJson);
-  } catch (e) {
-    // console.error(e);
-  }
-  return null;
-}
+import { getStorageName, getStoredState } from './utils';
 
 /**
  * A function that accepts an initial state, an object full of reducer
@@ -102,46 +83,47 @@ export const createPersistedSlice: <
       Record<Name, SliceState>
     >();
 
-    /**
-     * Overrides the getInitialState function to return the stored data
-     *
-     * @returns The initial state of the slice merged with the stored data
-     *
-     * @public
-     */
-    async function getInitialState(): Promise<SliceState> {
-      let storage: Partial<SliceState> = slice.getInitialState();
-      try {
-        storage = await getStoredState(sliceOptions.name) ?? storage;
-      } catch (e) {
-        // console.error(e);
-      }
-      return { ...slice.getInitialState(), ...storage };
+  /**
+   * Overrides the getInitialState function to return the stored data
+   *
+   * @returns The initial state of the slice merged with the stored data
+   *
+   * @public
+   */
+  // TODO: verify if we should inject the persisted state when reinizializing (I think we should remove this override)
+  async function getInitialState(): Promise<SliceState> {
+    let storage: Partial<SliceState> = slice.getInitialState();
+    try {
+      storage = await getStoredState(sliceOptions.name) ?? storage;
+    } catch (e) {
+      // console.error(e);
     }
+    return { ...slice.getInitialState(), ...storage };
+  }
 
-    /**
-     * Writes the updated state to the selected storage
-     *
-     * @param storedData The state to be persisted
-     *
-     * @internal
-     */
-    async function writePersistedStorage(storedData: SliceState) {
-      await Settings.storageHandler.setItem(
-        storageName,
-        JSON.stringify(filtersSlice(storedData)),
-      );
-      UpdatedAtHelper.onSave(sliceOptions.name);
-    }
+  /**
+   * Writes the updated state to the selected storage
+   *
+   * @param storedData The state to be persisted
+   *
+   * @internal
+   */
+  async function writePersistedStorage(storedData: SliceState) {
+    await Settings.storageHandler.setItem(
+      storageName,
+      JSON.stringify(filtersSlice(storedData)),
+    );
+    UpdatedAtHelper.onSave(sliceOptions.name);
+  }
 
-    /**
-     * Clears the stored data from the selected storage
-     *
-     * @public
-     */
-    async function clearPersistedStorage() {
-      await Settings.storageHandler.removeItem(storageName);
-    }
+  /**
+   * Clears the stored data from the selected storage
+   *
+   * @public
+   */
+  async function clearPersistedStorage() {
+    await Settings.storageHandler.removeItem(storageName);
+  }
 
   /**
    * Creates the slice using the default options passed by the user.
