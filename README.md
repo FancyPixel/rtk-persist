@@ -169,6 +169,14 @@ A wrapper around RTK's `configureStore`.
 
 ***
 
+## ❤️ Author
+
+This library is authored and maintained by **[Fancy Pixel srl](https://www.fancypixel.it)**.
+
+This library was crafted from our daily experiences building modern web and mobile applications. Contributions are welcome!
+
+***
+
 ## 📄 License
 
 This project is licensed under the MIT License.
