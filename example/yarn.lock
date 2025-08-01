@@ -1466,9 +1466,15 @@ rollup@^4.40.0:
     "@rollup/rollup-win32-x64-msvc" "4.46.2"
     fsevents "~2.3.2"
 
-rtk-persist@../rtk-persist-1.0.1.tgz:
-  version "1.0.1"
-  resolved "../rtk-persist-1.0.1.tgz#6147a5578753304bf925ead4501849fbf2f75636"
+rtk-persist@../rtk-persist-v1.0.2-beta04.tgz:
+  version "1.0.2-beta04"
+  resolved "../rtk-persist-v1.0.2-beta04.tgz#6d62f4b55c1d3a03409b00f194f95622499ee3e1"
+  dependencies:
+    "@reduxjs/toolkit" "^2.8.2"
+
+rtk-persist@../rtk-persist-v1.0.2-beta05.tgz:
+  version "1.0.2-beta05"
+  resolved "../rtk-persist-v1.0.2-beta05.tgz#e05af5d3b38effc6f4d2d32bdd7326ff71e8028e"
   dependencies:
     "@reduxjs/toolkit" "^2.8.2"
 

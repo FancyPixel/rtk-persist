@@ -14,7 +14,7 @@
     "react": "^19.1.0",
     "react-dom": "^19.1.0",
     "react-redux": "^9.2.0",
-    "rtk-persist": "../rtk-persist-1.0.1.tgz"
+    "rtk-persist": "../rtk-persist-v1.0.2-beta05.tgz"
   },
   "devDependencies": {
     "@eslint/js": "^9.30.1",
