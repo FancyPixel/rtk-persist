@@ -4,7 +4,7 @@ import { createPersistedReducer } from "rtk-persist";
 export const increment = createAction<number>('increment');
 export const decrement = createAction<number>('decrement');
 
-export const { reducer, reducerName } = createPersistedReducer(
+export const reducer = createPersistedReducer(
   'counter', // A unique name for the reducer
   { value: 0 }, // Initial state
   (builder) => {

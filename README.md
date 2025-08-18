@@ -89,7 +89,7 @@ import { createAction, PayloadAction, UnknownAction } from '@reduxjs/toolkit';
 const increment = createAction<number>('increment');
 const decrement = createAction<number>('decrement');
 
-export const { reducer, reducerName } = createPersistedReducer(
+export const reducer = createPersistedReducer(
   'counter', // A unique name for the reducer
   { value: 0 }, // Initial state
   (builder) => {
@@ -114,7 +114,7 @@ import { configurePersistedStore } from 'rtk-persist';
 // Import your slice reducer (Option 1)
 import counterSliceReducer from '../features/counter/counterSlice';
 // OR import your persisted reducer (Option 2)
-import { reducer as counterReducer, reducerName as counterReducerName } from '../features/counter/counterReducer';
+import { reducer as counterReducer } from '../features/counter/counterReducer';
 
 // For web, use localStorage or sessionStorage
 const storage = localStorage;
@@ -130,7 +130,7 @@ export const store = configurePersistedStore(
       counter: counterSliceReducer,
 
       // For Option 2 (createPersistedReducer)
-      // [counterReducerName]: counterReducer,
+      // counter: counterReducer,
     },
   },
   storage
