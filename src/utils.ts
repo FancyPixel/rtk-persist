@@ -19,3 +19,15 @@ export async function getStoredState<T>(name: string): Promise<Partial<T> | null
   }
   return null;
 }
+
+/**
+ * Clears the stored data from the selected storage
+ *
+ * @param name - string: a uniq name for the state slice implemented.
+ *
+ * @public
+ */
+export async function clearPersistedStorage(name: string) {
+  const storageName = getStorageName(name);
+  await Settings.storageHandler.removeItem(storageName);
+}

@@ -1,4 +1,4 @@
-import { ActionCreatorInvariantMiddlewareOptions, Draft, ImmutableStateInvariantMiddlewareOptions, ListenerMiddlewareInstance, Middleware, SerializableStateInvariantMiddlewareOptions, StoreEnhancer, ThunkMiddleware, Tuple, UnknownAction } from "@reduxjs/toolkit";
+import { ActionCreatorInvariantMiddlewareOptions, Draft, ImmutableStateInvariantMiddlewareOptions, Middleware, SerializableStateInvariantMiddlewareOptions, StoreEnhancer, ThunkMiddleware, Tuple, UnknownAction } from "@reduxjs/toolkit";
 
 /**
  * This is the description of the storage handler used to persist the data
@@ -119,13 +119,7 @@ type CaseReducer<S = any, A extends Action = UnknownAction> = (state: Draft<S>, 
 
 export type NotFunction<T> = T extends Function ? never : T;
 export type ReducerWithInitialState<S extends NotFunction<any>> = Reducer<S> & {
-    getInitialState: () => S;
-};
-export type PersistedReducer<ReducerName extends String, S extends NotFunction<any>> = {
-  reducer: ReducerWithInitialState<S>;
-  reducerName: ReducerName;
-  listenerMiddleware: ListenerMiddlewareInstance;
-  clearPersistedStorage: () => void;
+  getInitialState: () => S;
 };
 
 interface TypeGuard<T> {

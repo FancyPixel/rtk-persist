@@ -1,18 +1,17 @@
 import {
   createSlice,
   CreateSliceOptions,
-  ListenerMiddlewareInstance,
   PayloadAction,
   Slice,
   SliceCaseReducers,
-  SliceSelectors,
+  SliceSelectors
 } from '@reduxjs/toolkit';
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
 import { DEFAULT_INIT_ACTION_TYPE } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { getStorageName, getStoredState } from './utils';
+import { getStorageName } from './utils';
 
 /**
  * A function that accepts an initial state, an object full of reducer
@@ -45,14 +44,7 @@ export const createPersistedSlice: <
     PeristedSelectors
   >,
   filtersSlice?: (state: SliceState) => Partial<SliceState>,
-) => Omit<
-  Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors>,
-  'getInitialState'
-> & {
-  getInitialState: () => Promise<SliceState>;
-  listenerMiddleware: ListenerMiddlewareInstance;
-  clearPersistedStorage: () => void;
-} = <
+) => Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors> = <
   SliceState,
   Name extends string = string,
   PCR extends
@@ -84,24 +76,6 @@ export const createPersistedSlice: <
     >();
 
   /**
-   * Overrides the getInitialState function to return the stored data
-   *
-   * @returns The initial state of the slice merged with the stored data
-   *
-   * @public
-   */
-  // TODO: verify if we should inject the persisted state when reinizializing (I think we should remove this override)
-  async function getInitialState(): Promise<SliceState> {
-    let storage: Partial<SliceState> = slice.getInitialState();
-    try {
-      storage = await getStoredState(sliceOptions.name) ?? storage;
-    } catch (e) {
-      // console.error(e);
-    }
-    return { ...slice.getInitialState(), ...storage };
-  }
-
-  /**
    * Writes the updated state to the selected storage
    *
    * @param storedData The state to be persisted
@@ -114,15 +88,6 @@ export const createPersistedSlice: <
       JSON.stringify(filtersSlice(storedData)),
     );
     UpdatedAtHelper.onSave(sliceOptions.name);
-  }
-
-  /**
-   * Clears the stored data from the selected storage
-   *
-   * @public
-   */
-  async function clearPersistedStorage() {
-    await Settings.storageHandler.removeItem(storageName);
   }
 
   /**
@@ -184,10 +149,5 @@ export const createPersistedSlice: <
     },
   });
 
-  return {
-    ...slice,
-    getInitialState,
-    listenerMiddleware,
-    clearPersistedStorage,
-  };
+  return slice;
 };

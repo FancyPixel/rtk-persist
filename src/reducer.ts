@@ -6,7 +6,7 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { DEFAULT_INIT_ACTION_TYPE, NotFunction, PersistedReducer } from './types';
+import { DEFAULT_INIT_ACTION_TYPE, NotFunction, ReducerWithInitialState } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
 import { getStorageName } from './utils';
 
@@ -79,7 +79,15 @@ const { reducer } = createPersistedReducer(
 ```
  * @public
  */
-export const createPersistedReducer: <ReducerName extends string, S extends NotFunction<any>>(reducerName: ReducerName, initialState: S | (() => S), mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void, filtersSlice?: (state: S) => Partial<S>) => PersistedReducer<ReducerName, S> = <ReducerName extends string, S extends NotFunction<any>>(
+export const createPersistedReducer: <
+  ReducerName extends string,
+  S extends NotFunction<any>
+>(
+  reducerName: ReducerName,
+  initialState: S | (() => S),
+  mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
+  filtersSlice?: (state: S) => Partial<S>
+) => ReducerWithInitialState<S> = <ReducerName extends string, S extends NotFunction<any>>(
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
@@ -111,15 +119,6 @@ export const createPersistedReducer: <ReducerName extends string, S extends NotF
       JSON.stringify(filtersSlice(storedData)),
     );
     UpdatedAtHelper.onSave(reducerName);
-  }
-
-  /**
-   * Clears the stored data from the selected storage
-   *
-   * @public
-   */
-  async function clearPersistedStorage() {
-    await Settings.storageHandler.removeItem(storageName);
   }
 
   /**
@@ -163,5 +162,5 @@ export const createPersistedReducer: <ReducerName extends string, S extends NotF
     },
   });
 
-  return { reducer, reducerName, listenerMiddleware, clearPersistedStorage };
+  return reducer;
 };
