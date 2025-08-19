@@ -6,9 +6,9 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { NotFunction, ReducerWithInitialState, REHYDRATE } from './types';
+import { NotFunction, ReducerWithInitialState } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { writePersistedStorage } from './utils';
+import { REHYDRATE, writePersistedStorage } from './utils';
 
 /**
  * A utility function that creates a persisted reducer. It wraps the standard
@@ -76,13 +76,37 @@ export const createPersistedReducer: <
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
 ) => {
-  // Subscribe the reducer to be persisted
+  /**
+   * Registers the reducer's name to the list of persisted slices.
+   * This allows the persistence logic to identify which parts of the state to manage.
+   */
   Settings.subscribeSlice(reducerName);
+
   /**
    * A flag to ensure the rehydration process runs only once.
    * @internal
    */
   let isHydrated = false;
+
+  /**
+   * A timeout variable to manage the debouncing of the storage write.
+   * @internal
+   */
+  let debounceTimeout: NodeJS.Timeout | null = null;
+
+  /**
+   * Debounces the `writePersistedStorage` function to prevent excessive writes
+   * during rapid state changes. The state is saved 100ms after the last change.
+   * @param state - The current root state of the Redux store.
+   * @param name - The name of the slice to persist.
+   * @internal
+   */
+  const onDump = (state: Record<ReducerName, S>, name: ReducerName) => {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      writePersistedStorage(state, name);
+    }, 100);
+  };
 
   /**
    * Creates a typed instance of the listener middleware's startListening function.
@@ -117,13 +141,13 @@ export const createPersistedReducer: <
   startAppListening({
     predicate: (action) => {
       // Exclude the rehydrate action from triggering a save.
-      if (action.type === REHYDRATE.toString()) return false;
+      if (action.type === REHYDRATE.toString() || !Settings.isPersistenceEnabled) return false;
       return true;
     },
     effect: async (_action, { getState }) => {
-      if (!await UpdatedAtHelper.shouldSave(reducerName) || !Settings.isPersistenceEnabled) return;
+      if (!await UpdatedAtHelper.shouldSave(reducerName)) return;
       const state = getState();
-      writePersistedStorage(state, reducerName);
+      onDump(state, reducerName);
     },
   });
 

@@ -9,9 +9,8 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { REHYDRATE } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { writePersistedStorage } from './utils';
+import { REHYDRATE, writePersistedStorage } from './utils';
 
 /**
  * A wrapper around the standard RTK `createSlice()` function that adds
@@ -58,13 +57,37 @@ export const createPersistedSlice: <
     PeristedSelectors
   >,
 ) => {
-  // Subscribe the slice to be persisted
+  /**
+   * Registers the slice's name to the list of persisted slices.
+   * This allows the persistence logic to identify which parts of the state to manage.
+   */
   Settings.subscribeSlice(sliceOptions.name);
+
   /**
    * A flag to ensure the rehydration process runs only once per slice.
    * @internal
    */
   let isHydrated = false;
+
+  /**
+   * A timeout variable to manage the debouncing of the storage write.
+   * @internal
+   */
+  let debounceTimeout: NodeJS.Timeout | null = null;
+
+  /**
+   * Debounces the `writePersistedStorage` function to prevent excessive writes
+   * during rapid state changes. The state is saved 100ms after the last change.
+   * @param state - The current root state of the Redux store.
+   * @param name - The name of the slice to persist.
+   * @internal
+   */
+  const onDump = (state: Record<Name, SliceState>, name: Name) => {
+    if (debounceTimeout) clearTimeout(debounceTimeout);
+    debounceTimeout = setTimeout(() => {
+      writePersistedStorage(state, name);
+    }, 100);
+  };
 
   /**
    * Creates a typed instance of the listener middleware's startListening function.
@@ -106,7 +129,7 @@ export const createPersistedSlice: <
       effect: (_action, { getState }) => {
         if (Settings.isPersistenceEnabled) {
           const state = getState();
-          writePersistedStorage(state, sliceOptions.name);
+          onDump(state, sliceOptions.name);
         }
       },
     });
@@ -120,13 +143,13 @@ export const createPersistedSlice: <
   startAppListening({
     predicate: (action) => {
       // Exclude the slice's own actions (already handled) and the rehydrate action.
-      if (action.type === REHYDRATE.toString() || action.type.startsWith(`${slice.name}/`)) return false;
+      if (action.type === REHYDRATE.toString() || action.type.startsWith(`${slice.name}/`) || !Settings.isPersistenceEnabled) return false;
       return true;
     },
     effect: async (_action, { getState }) => {
-      if (!await UpdatedAtHelper.shouldSave(sliceOptions.name) || !Settings.isPersistenceEnabled) return;
+      if (!await UpdatedAtHelper.shouldSave(sliceOptions.name)) return;
       const state = getState();
-      writePersistedStorage(state, sliceOptions.name);
+      onDump(state, sliceOptions.name);
     },
   });
 

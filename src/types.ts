@@ -1,7 +1,6 @@
 import {
   Action,
   ActionCreatorInvariantMiddlewareOptions,
-  createAction,
   EnhancedStore,
   ImmutableStateInvariantMiddlewareOptions,
   Middleware,
@@ -34,19 +33,6 @@ export interface StorageHandler {
   /** Removes a value from storage for a given key. */
   removeItem: (key: string) => Promise<void> | void;
 }
-
-/**
- * Action dispatched to rehydrate the store with persisted state.
- * @internal
- */
-export const REHYDRATE = createAction<Record<string, unknown>>('@@INIT-PERSIST');
-
-/**
- * Action dispatched to trigger an immediate re-save of the current state
- * after persistence has been resumed.
- * @internal
- */
-export const RESUME_PERSISTANCE = createAction<void>('@@RESUME-PERSIST');
 
 // --- Internal RTK Types ---
 // These types are re-exported or re-defined from Redux Toolkit's internal

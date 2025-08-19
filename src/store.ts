@@ -1,9 +1,9 @@
 import { Action, configureStore, ConfigureStoreOptions, createDynamicMiddleware, createListenerMiddleware, StoreEnhancer, Tuple, UnknownAction } from "@reduxjs/toolkit";
 import { listenerMiddleware } from "./middleware";
 import Settings from "./settings";
-import { Enhancers, ExtractDispatchExtensions, Middlewares, PersistedStore, REHYDRATE, RESUME_PERSISTANCE, StorageHandler, ThunkMiddlewareFor } from "./types";
+import { Enhancers, ExtractDispatchExtensions, Middlewares, PersistedStore, StorageHandler, ThunkMiddlewareFor } from "./types";
 import UpdatedAtHelper from "./updatedAtHelper";
-import { clearPersistedStorage, getStoredState } from "./utils";
+import { clearPersistedStorage, getStoredState, REHYDRATE, RESUME_PERSISTANCE } from "./utils";
 
 /**
  * A friendly encapsulation of the standard RTK `configureStore()` function
