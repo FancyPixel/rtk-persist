@@ -82,3 +82,27 @@ export default class UpdatedAtHelper {
     cache[name] = { ...cache[name], localUpdatedAt: new Date().getTime() };
   }
 }
+
+/**
+ * A testing-specific extension of UpdatedAtHelper that provides methods
+ * to control its internal state for predictable test outcomes.
+ * @internal
+ */
+export class TestUpdatedAtHelper extends UpdatedAtHelper {
+  /**
+   * Resets the internal cache to its default empty state.
+   */
+  static _clearCache() {
+    cache = {};
+  }
+
+  /**
+   * Manually sets the stored timestamp for a slice.
+   * This is useful for simulating scenarios where storage was updated externally.
+   * @param name - The name of the slice.
+   * @param timestamp - The timestamp to set.
+   */
+  static _setStoredUpdatedAtForTest(name: string, timestamp: number) {
+    cache[name] = { ...(cache[name] || { localUpdatedAt: 0 }), storedUpdatedAt: timestamp };
+  }
+}
