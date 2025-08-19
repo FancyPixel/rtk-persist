@@ -11,10 +11,10 @@ describe('Global settings', () => {
     expect(Settings.storageHandler).toEqual(mockStorageHandler);
   });
 
-  it('should be initiated when configuring a store', () => {
-    configurePersistedStore({
+  it('should be initiated when configuring a store', async () => {
+    await configurePersistedStore({
       reducer: ({ [mockPersistedSlice.name]: mockPersistedSlice.reducer }),
-    }, mockStorageHandler);
+    }, 'mock', mockStorageHandler);
     expect(Settings.storageHandler).toEqual(mockStorageHandler);
   });
 

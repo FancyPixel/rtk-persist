@@ -1,15 +1,15 @@
 import { Store } from "@reduxjs/toolkit";
 import { configurePersistedStore } from "../src";
-import { mockPersistedSlice, mockStorageHandler, sliceInitialState } from "./mocks";
 import Settings from "../src/settings";
+import { mockPersistedSlice, mockStorageHandler, sliceInitialState } from "./mocks";
 
 describe('Persisted Store', () => {
   let store: Store;
 
-  beforeEach(() => {
-    store = configurePersistedStore({
+  beforeEach(async () => {
+    store = await configurePersistedStore({
       reducer: ({ [mockPersistedSlice.name]: mockPersistedSlice.reducer }),
-    }, mockStorageHandler);
+    }, 'mock', mockStorageHandler);
   })
 
   it('should set the storage handler', () => {

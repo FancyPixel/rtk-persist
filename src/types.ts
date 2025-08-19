@@ -120,4 +120,6 @@ export type PersistedStore<
   pausePersist: () => void;
   /** Resumes persistence and triggers a save. */
   resumePersist: () => void;
+  /** Clears the persisted state. */
+  clearPersistedState: () => void;
 }

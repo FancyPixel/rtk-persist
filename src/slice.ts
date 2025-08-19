@@ -1,13 +1,11 @@
 import {
   createSlice,
   CreateSliceOptions,
-  current,
   PayloadAction,
   Slice,
   SliceCaseReducers,
   SliceSelectors
 } from '@reduxjs/toolkit';
-import merge from 'lodash.merge';
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
@@ -82,8 +80,8 @@ export const createPersistedSlice: <
     extraReducers: builder => {
       const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       // Add a case to handle the rehydration of state from storage.
-      b.builder.addCase(REHYDRATE.toString(), (state, action: PayloadAction<Record<Name, SliceState> | null>): void | SliceState => {
-        if (action.payload?.[sliceOptions.name]) return merge({ ...current(state) }, action.payload[sliceOptions.name]);
+      b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<Name, SliceState> | null>): void | SliceState => {
+        if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
       });
       // Allow the user to add their own extra reducers.
       sliceOptions.extraReducers?.(b);
