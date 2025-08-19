@@ -5,7 +5,7 @@ export const increment = createAction<number>('increment');
 export const decrement = createAction<number>('decrement');
 
 export const reducer = createPersistedReducer(
-  'counter', // A unique name for the reducer
+  'counterR', // A unique name for the reducer
   { value: 0 }, // Initial state
   (builder) => {
     builder

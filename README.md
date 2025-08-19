@@ -133,34 +133,35 @@ export const store = configurePersistedStore(
       // counter: counterReducer,
     },
   },
+  'applicationId',
   storage
 );
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+type Store = Awaited<typeof store>;
+export type RootState = ReturnType<Store['getState']>;
+export type AppDispatch = Store['dispatch'];
 ```
 
 
 ## 🛠️ API
 
-### `createPersistedSlice(sliceOptions, [filterFunction])`
+### `createPersistedSlice(sliceOptions)`
 
 A wrapper around RTK's `createSlice`.
 * **`sliceOptions`**: The standard `CreateSliceOptions` object.
-* **`filterFunction`** (optional): A function `(state) => partialState` to select which parts of the state to persist.
 
-### `createPersistedReducer(name, initialState, builderCallback, [filterFunction])`
+### `createPersistedReducer(name, initialState, builderCallback)`
 
 A wrapper around RTK's `createReducer`.
 * **`name`**: A unique string to identify this reducer in storage.
 * **`initialState`**: The initial state for the reducer.
 * **`builderCallback`**: A callback that receives a `builder` object to define case reducers.
-* **`filterFunction`** (optional): A function `(state) => partialState` to select which parts of the state to persist.
 
-### `configurePersistedStore(storeOptions, storageHandler)`
+### `configurePersistedStore(storeOptions, applicationId, storageHandler)`
 
 A wrapper around RTK's `configureStore`.
 * **`storeOptions`**: The standard `ConfigureStoreOptions` object.
+* **`applicationId`**: A unique string that identifies the application.
 * **`storageHandler`**: A storage object that implements `getItem`, `setItem`, and `removeItem`.
 
 

@@ -1,8 +1,8 @@
 /**
-  * Global value that stores for each slice the last time
-  * it was updated and dumped locally
-  * @private
-  */
+ * Global value that stores for each slice the last time
+ * it was updated and dumped locally
+ * @private
+ */
 let cache: Record<string, { localUpdatedAt: number; storedUpdatedAt: number; }> = {};
 
 /**
@@ -12,37 +12,34 @@ let cache: Record<string, { localUpdatedAt: number; storedUpdatedAt: number; }> 
  */
 export default class UpdatedAtHelper {
   constructor() {
-    cache = {};
-  }
-
-  protected static getCacheName(name: string) {
-    return `persisted-storage-${name}-update-at`;
+    // This class is not meant to be instantiated.
+    throw new Error('UpdatedAtHelper is a static class and cannot be instantiated.');
   }
 
   /**
-   * Returns the last time the slice was saved locally
-   * It returns the valued cached if set
+   * Returns the last time the slice was saved to storage.
+   * It returns the cached value if set, otherwise 0.
    *
-   * @params The name of the slice
-   * @returns The last time the slice was saved locally
+   * @param name - The name of the slice.
+   * @returns The last time the slice was saved to storage, as a timestamp.
    *
-   * @public
+   * @internal
    */
   static async getStoredUpdateAtOf(name: string): Promise<number> {
     // If there's already a cached version of the updateAt return it
     if (cache[name]?.storedUpdatedAt !== undefined) return cache[name].storedUpdatedAt;
 
-    // Othwerwise return a defualt value
+    // Otherwise return a default value
     return 0;
   }
 
   /**
-   * Returns true if the slice should be saved locally.
+   * Determines if the local slice state is newer than the state in storage.
    *
-   * @params The name of the slice
-   * @returns If the slice should be saved locally
+   * @param name - The name of the slice.
+   * @returns A promise that resolves to true if the slice should be saved locally.
    *
-   * @public
+   * @internal
    */
   static async shouldSave(name: string): Promise<boolean> {
     const stored = await this.getStoredUpdateAtOf(name);
@@ -50,11 +47,24 @@ export default class UpdatedAtHelper {
   }
 
   /**
-   * Sets the last time the slice was saved locally.
+   * Determines if the stored slice state is newer than the local state.
    *
-   * @params The name of the slice
+   * @param name - The name of the slice.
+   * @returns A promise that resolves to true if the local state should be overridden by the stored state.
    *
-   * @public
+   * @internal
+   */
+  static async shouldOverride(name: string): Promise<boolean> {
+    const stored = await this.getStoredUpdateAtOf(name);
+    return (cache[name]?.localUpdatedAt ?? 0) < stored;
+  }
+
+  /**
+   * Updates the cache to reflect that a slice has been saved to storage.
+   *
+   * @param name - The name of the slice.
+   *
+   * @internal
    */
   static onSave(name: string) {
     const updatedAt = new Date().getTime();
@@ -62,11 +72,11 @@ export default class UpdatedAtHelper {
   }
 
   /**
-   * Sets the last time the slice was updated.
+   * Updates the cache to reflect that a slice's state has changed locally.
    *
-   * @param storageHandler - The selected storage handler.
+   * @param name - The name of the slice.
    *
-   * @public
+   * @internal
    */
   static onStateChange(name: string) {
     cache[name] = { ...cache[name], localUpdatedAt: new Date().getTime() };

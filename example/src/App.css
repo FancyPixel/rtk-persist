@@ -10,9 +10,34 @@
 
 .card {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
   padding: 2em;
-  gap: 2rem;
+  gap: 1rem;
+  border-radius: 12px;
+  margin-bottom: 2rem;
+  background-color: #efefef;
+}
+
+.button-group {
+  display: flex;
+  gap: 1rem;
+}
+
+.status-bar {
+  border-radius: 8px;
+  padding: 0.5rem 1.5rem;
+  margin-bottom: 2rem;
+  background-color: #efefef;
+  color: #222222;
+}
+
+.status-bar p {
+  margin: 0.5rem 0;
+}
+
+.status-bar strong {
+  color: #222222;
+  font-weight: 600;
 }

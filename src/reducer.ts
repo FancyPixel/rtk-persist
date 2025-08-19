@@ -6,35 +6,24 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { DEFAULT_INIT_ACTION_TYPE, NotFunction, ReducerWithInitialState } from './types';
+import { NotFunction, ReducerWithInitialState, REHYDRATE } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { getStorageName } from './utils';
+import { writePersistedStorage } from './utils';
 
 /**
- * A utility function that allows defining a reducer as a mapping from action
- * type to *case reducer* functions that handle these action types. The
- * reducer's initial state is passed as the first argument.
+ * A utility function that creates a persisted reducer. It wraps the standard
+ * Redux Toolkit `createReducer` function, adding persistence capabilities.
  *
- * The state will be persisted throughout multiple reloads.
- * It requires to use {@link configurePersistedStore | configurePersistedStore}
+ * The state will be persisted across multiple application reloads.
+ * This function requires the use of {@link configurePersistedStore}.
  *
  * @remarks
- * The body of every case reducer is implicitly wrapped with a call to
- * `produce()` from the [immer](https://github.com/mweststrate/immer) library.
- * This means that rather than returning a new state object, you can also
- * mutate the passed-in state object directly; these mutations will then be
- * automatically and efficiently translated into copies, giving you both
- * convenience and immutability.
+ * The body of every case reducer is implicitly wrapped with `produce` from Immer,
+ * allowing you to write "mutating" logic that is safely translated into immutable updates.
  *
- * @overloadSummary
- * This function accepts a callback that receives a `builder` object as its argument.
- * That builder provides `addCase`, `addMatcher` and `addDefaultCase` functions that may be
- * called to define what actions this reducer will handle.
- *
- * @param reducerName - string: a uniq name for the state slice implemented.
- * @param initialState - `State | (() => State)`: The initial state that should be used when the reducer is called the first time. This may also be a "lazy initializer" function, which should return an initial state value when called. This will be used whenever the reducer is called with `undefined` as its state value, and is primarily useful for cases like reading initial state from `localStorage`.
- * @param builderCallback - `(builder: Builder) => void` A callback that receives a *builder* object to define
- *   case reducers via calls to `builder.addCase(actionCreatorOrType, reducer)`.
+ * @param reducerName - A unique string name for the reducer. This name is used as the key in the root state object and for storage.
+ * @param initialState - The initial state for the reducer. Can be a value or a lazy initializer function.
+ * @param mapOrBuilderCallback - A callback that receives a `builder` object to define case reducers via `builder.addCase`, `builder.addMatcher`, and `builder.addDefaultCase`.
  * @example
 ```ts
 import {
@@ -53,7 +42,7 @@ function isActionWithNumberPayload(
   return typeof action.payload === "number";
 }
 
-const { reducer } = createPersistedReducer(
+const reducer = createPersistedReducer(
   'counters',
   {
     counter: 0,
@@ -63,16 +52,12 @@ const { reducer } = createPersistedReducer(
   (builder) => {
     builder
       .addCase(increment, (state, action) => {
-        // action is inferred correctly here
         state.counter += action.payload;
       })
-      // You can chain calls, or have separate `builder.addCase()` lines each time
       .addCase(decrement, (state, action) => {
         state.counter -= action.payload;
       })
-      // You can apply a "matcher function" to incoming actions
       .addMatcher(isActionWithNumberPayload, (state, action) => {})
-      // and provide a default case if no other handlers matched
       .addDefaultCase((state, action) => {});
   }
 );
@@ -86,20 +71,17 @@ export const createPersistedReducer: <
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-  filtersSlice?: (state: S) => Partial<S>
 ) => ReducerWithInitialState<S> = <ReducerName extends string, S extends NotFunction<any>>(
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-  filtersSlice: (state: S) => Partial<S> = state => state,
 ) => {
-  const storageName = getStorageName(reducerName);
+  // Subscribe the reducer to be persisted
+  Settings.subscribeSlice(reducerName);
 
   /**
-   * Creates a typed version of the startListening function
-   * of the listener middlerware
-   *
-   * {@link @reduxjs/toolkit#createListenerMiddleware}
+   * Creates a typed instance of the listener middleware's startListening function.
+   * @internal
    */
   const startAppListening =
     listenerMiddleware.startListening.withTypes<
@@ -107,56 +89,44 @@ export const createPersistedReducer: <
     >();
 
   /**
-   * Writes the updated state to the selected storage
-   *
-   * @param storedData The state to be persisted
-   *
+   * Creates the main reducer, extending the builder to track state changes
+   * and handle the rehydration action.
    * @internal
-   */
-  async function writePersistedStorage(storedData: S) {
-    await Settings.storageHandler.setItem(
-      storageName,
-      JSON.stringify(filtersSlice(storedData)),
-    );
-    UpdatedAtHelper.onSave(reducerName);
-  }
-
-  /**
-   * Creates the reducer using the default options passed by the user.
-   *
-   * Extends the default extra reducer builder to update a stored var
-   * the tracks the last time the state was updated.
-   *
    */
   const reducer = createReducer(initialState, builder => {
     const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
-    mapOrBuilderCallback(b);
-    b.builder.addMatcher(({ type }) => type === `${reducerName}\\${DEFAULT_INIT_ACTION_TYPE}`, (_state, action: PayloadAction<S | null>): void | S => {
-      if (action.payload) return action.payload;
+    // Add a case to handle the rehydration of state from storage.
+    b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<ReducerName, S> | null>): void | S => {
+      if (action.payload?.[reducerName]) return action.payload[reducerName];
     });
+    mapOrBuilderCallback(b);
   });
 
   /**
-   * Adds the listener to any actions and updates the stored
-   * data if a change happened.
-   *
-   * We track all the changes of our state updating a custom
-   * attribute saving the time when the change happened.
+   * Listens for any action (except rehydration) to check if the state
+   * has been updated and needs to be persisted.
+   * @internal
    */
   startAppListening({
     predicate: (action) => {
-      if (action.type === DEFAULT_INIT_ACTION_TYPE) return false;
+      // Exclude the rehydrate action from triggering a save.
+      if (action.type === REHYDRATE.toString()) return false;
       return true;
     },
     effect: async (_action, { getState }) => {
-      if (!await UpdatedAtHelper.shouldSave(reducerName)) return;
+      if (!await UpdatedAtHelper.shouldSave(reducerName) || !Settings.isPersistenceEnabled) return;
       const state = getState();
-      writePersistedStorage(state[reducerName]);
+      writePersistedStorage(state, reducerName);
     },
   });
 
+  /**
+   * Listens for the rehydration action to update the local timestamp,
+   * ensuring the state isn't immediately re-saved.
+   * @internal
+   */
   startAppListening({
-    type: `${reducerName}/${DEFAULT_INIT_ACTION_TYPE}`,
+    actionCreator: REHYDRATE,
     effect: () => {
       UpdatedAtHelper.onStateChange(reducerName);
     },
