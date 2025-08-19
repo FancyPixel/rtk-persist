@@ -78,6 +78,11 @@ export const createPersistedReducer: <
 ) => {
   // Subscribe the reducer to be persisted
   Settings.subscribeSlice(reducerName);
+  /**
+   * A flag to ensure the rehydration process runs only once.
+   * @internal
+   */
+  let isHydrated = false;
 
   /**
    * Creates a typed instance of the listener middleware's startListening function.
@@ -96,8 +101,10 @@ export const createPersistedReducer: <
   const reducer = createReducer(initialState, builder => {
     const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     // Add a case to handle the rehydration of state from storage.
-    b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<ReducerName, S> | null>): void | S => {
-      if (action.payload?.[reducerName]) return action.payload[reducerName];
+    b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<ReducerName, S> | null>): void | S => {
+      if (!isHydrated) {
+        if (action.payload?.[reducerName]) return action.payload[reducerName];
+      }
     });
     mapOrBuilderCallback(b);
   });
@@ -121,14 +128,15 @@ export const createPersistedReducer: <
   });
 
   /**
-   * Listens for the rehydration action to update the local timestamp,
-   * ensuring the state isn't immediately re-saved.
+   * Listens for the rehydration action to update the local timestamp and
+   * set the `isHydrated` flag to prevent subsequent rehydrations.
    * @internal
    */
   startAppListening({
     actionCreator: REHYDRATE,
     effect: () => {
       UpdatedAtHelper.onStateChange(reducerName);
+      isHydrated = true;
     },
   });
 

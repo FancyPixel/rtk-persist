@@ -137,6 +137,17 @@ export const configurePersistedStore: <
     }));
   }
 
+  /**
+   * Overrides the original `replaceReducer` function to automatically
+   * trigger rehydration after a new reducer has been injected.
+   * @internal
+   */
+  const _replaceReducer = persistedStore.replaceReducer;
+  persistedStore.replaceReducer = (nR) => {
+    _replaceReducer.call(persistedStore, nR);
+    rehydrate();
+  }
+
   return new Promise<PersistedStore<S, A, M, E>>(async (resolve) => {
     try {
       const m = createListenerMiddleware();

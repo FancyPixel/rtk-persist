@@ -60,6 +60,11 @@ export const createPersistedSlice: <
 ) => {
   // Subscribe the slice to be persisted
   Settings.subscribeSlice(sliceOptions.name);
+  /**
+   * A flag to ensure the rehydration process runs only once per slice.
+   * @internal
+   */
+  let isHydrated = false;
 
   /**
    * Creates a typed instance of the listener middleware's startListening function.
@@ -80,8 +85,10 @@ export const createPersistedSlice: <
     extraReducers: builder => {
       const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       // Add a case to handle the rehydration of state from storage.
-      b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<Name, SliceState> | null>): void | SliceState => {
-        if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
+      b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<Name, SliceState> | null>): void | SliceState => {
+        if (!isHydrated) {
+          if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
+        }
       });
       // Allow the user to add their own extra reducers.
       sliceOptions.extraReducers?.(b);
@@ -124,13 +131,14 @@ export const createPersistedSlice: <
   });
 
   /**
-   * Listens for the rehydration action to update the local timestamp,
-   * ensuring the state isn't immediately re-saved.
+   * Listens for the rehydration action to update the local timestamp and
+   * set the `isHydrated` flag to prevent subsequent rehydrations.
    * @internal
    */
   startAppListening({
     actionCreator: REHYDRATE,
     effect: () => {
+      isHydrated = true;
       UpdatedAtHelper.onStateChange(sliceOptions.name);
     },
   });
