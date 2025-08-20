@@ -34,6 +34,8 @@ export interface StorageHandler {
   removeItem: (key: string) => Promise<void> | void;
 }
 
+export type RehydrateActionPayload<Name extends string = string, State = unknown> = Record<Name, State> | null;
+
 // --- Internal RTK Types ---
 // These types are re-exported or re-defined from Redux Toolkit's internal
 // types to ensure proper type inference in `configurePersistedStore`.
@@ -102,10 +104,6 @@ export type PersistedStore<
 > = EnhancedStore<S, A, E> & {
   /** Manually rehydrates the store from storage. */
   rehydrate: () => Promise<void>;
-  /** Pauses persistence. */
-  pausePersist: () => void;
-  /** Resumes persistence and triggers a save. */
-  resumePersist: () => void;
   /** Clears the persisted state. */
   clearPersistedState: () => void;
 }

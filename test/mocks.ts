@@ -56,13 +56,16 @@ export class StorageMock implements StorageHandler {
  */
 export const sliceInitialState = { counter: 0 };
 
+
+export const mockSliceName = 'testCounter';
+
 /**
  * A pre-configured persisted slice for use in tests.
  * It includes common reducers and selectors for a counter.
  * @public
  */
-export const mockPersistedSlice = createPersistedSlice({
-  name: 'test-counter',
+export const mockPersistedSliceFactory = () => createPersistedSlice({
+  name: mockSliceName,
   initialState: sliceInitialState,
   reducers: {
     increment: (state) => {

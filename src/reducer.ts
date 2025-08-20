@@ -6,7 +6,7 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { NotFunction, ReducerWithInitialState } from './types';
+import { NotFunction, ReducerWithInitialState, RehydrateActionPayload } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
 import { REHYDRATE, writePersistedStorage } from './utils';
 
@@ -83,12 +83,6 @@ export const createPersistedReducer: <
   Settings.subscribeSlice(reducerName);
 
   /**
-   * A flag to ensure the rehydration process runs only once.
-   * @internal
-   */
-  let isHydrated = false;
-
-  /**
    * A timeout variable to manage the debouncing of the storage write.
    * @internal
    */
@@ -125,10 +119,8 @@ export const createPersistedReducer: <
   const reducer = createReducer(initialState, builder => {
     const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     // Add a case to handle the rehydration of state from storage.
-    b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<ReducerName, S> | null>): void | S => {
-      if (!isHydrated) {
-        if (action.payload?.[reducerName]) return action.payload[reducerName];
-      }
+    b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<ReducerName, S>>): void | S => {
+      if (action.payload?.[reducerName]) return action.payload[reducerName];
     });
     mapOrBuilderCallback(b);
   });
@@ -141,7 +133,7 @@ export const createPersistedReducer: <
   startAppListening({
     predicate: (action) => {
       // Exclude the rehydrate action from triggering a save.
-      if (action.type === REHYDRATE.toString() || !Settings.isPersistenceEnabled) return false;
+      if (action.type === REHYDRATE.toString()) return false;
       return true;
     },
     effect: async (_action, { getState }) => {
@@ -160,7 +152,6 @@ export const createPersistedReducer: <
     actionCreator: REHYDRATE,
     effect: () => {
       UpdatedAtHelper.onStateChange(reducerName);
-      isHydrated = true;
     },
   });
 

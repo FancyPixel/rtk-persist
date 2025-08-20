@@ -1,19 +1,13 @@
 import { createAction } from "@reduxjs/toolkit";
 import Settings from "./settings";
+import { RehydrateActionPayload } from "./types";
 import UpdatedAtHelper from "./updatedAtHelper";
 
 /**
  * Action dispatched to rehydrate the store with persisted state.
  * @internal
  */
-export const REHYDRATE = createAction<Record<string, unknown>>('@@INIT-PERSIST');
-
-/**
- * Action dispatched to trigger an immediate re-save of the current state
- * after persistence has been resumed.
- * @internal
- */
-export const RESUME_PERSISTANCE = createAction<void>('@@RESUME-PERSIST');
+export const REHYDRATE = createAction<RehydrateActionPayload>('@@INIT-PERSIST');
 
 /**
  * Generates the unique storage key for a given slice name.

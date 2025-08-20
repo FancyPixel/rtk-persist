@@ -2,8 +2,7 @@ import { Action, configureStore, ConfigureStoreOptions, createDynamicMiddleware,
 import { listenerMiddleware } from "./middleware";
 import Settings from "./settings";
 import { Enhancers, ExtractDispatchExtensions, Middlewares, PersistedStore, StorageHandler, ThunkMiddlewareFor } from "./types";
-import UpdatedAtHelper from "./updatedAtHelper";
-import { clearPersistedStorage, getStoredState, REHYDRATE, RESUME_PERSISTANCE } from "./utils";
+import { clearPersistedStorage, getStoredState, REHYDRATE } from "./utils";
 
 /**
  * A friendly encapsulation of the standard RTK `configureStore()` function
@@ -49,7 +48,10 @@ export const configurePersistedStore: <
 >(
   options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>,
   applicationId: string,
-  storageHandler: StorageHandler
+  storageHandler: StorageHandler,
+  persistenceOptions?: {
+    rehydrationTimeout?: number;
+  }
 ) => {
   // Set the default storage handler and the applicationId
   Settings.storageHandler = storageHandler;
@@ -74,12 +76,16 @@ export const configurePersistedStore: <
    * @public
    */
   const rehydrate = () => new Promise<void>(async (resolve, reject) => {
+    const signalTimeout = setTimeout(() => {
+      reject();
+    }, persistenceOptions?.rehydrationTimeout ?? 5000);
     const m = createListenerMiddleware();
     m.startListening({
       actionCreator: REHYDRATE,
       effect: (_, l) => {
-        resolve();
+        clearTimeout(signalTimeout);
         l.unsubscribe();
+        resolve();
       },
     });
     dynamicMiddleware.addMiddleware(m.middleware);
@@ -87,10 +93,8 @@ export const configurePersistedStore: <
     try {
       const storedState: Record<string, unknown> = {};
       await Promise.all(Settings.subscribedSliceIds.map(async (sliceId) => {
-        if (await UpdatedAtHelper.shouldOverride(sliceId)) {
-          const s = await getStoredState(sliceId);
-          if (s) storedState[sliceId] = s;
-        }
+        const s = await getStoredState(sliceId);
+        if (s) storedState[sliceId] = s;
       }))
       persistedStore.dispatch(REHYDRATE(storedState) as any);
     } catch (error) {
@@ -104,25 +108,6 @@ export const configurePersistedStore: <
       reject();
     }
   });
-
-  /**
-   * Pauses the persistence of the store.
-   * While paused, no state changes will be saved to storage.
-   * @public
-   */
-  const pausePersist = () => {
-    Settings.pause();
-  }
-
-  /**
-   * Resumes the persistence of the store after it has been paused.
-   * This will trigger an immediate persistence of the current state.
-   * @public
-   */
-  const resumePersist = () => {
-    Settings.resume();
-    persistedStore.dispatch(RESUME_PERSISTANCE() as any);
-  }
 
   /**
    * Clears all persisted state for the subscribed slices from the storage.
@@ -150,22 +135,8 @@ export const configurePersistedStore: <
 
   return new Promise<PersistedStore<S, A, M, E>>(async (resolve) => {
     try {
-      const m = createListenerMiddleware();
-      m.startListening({
-        actionCreator: REHYDRATE,
-        effect: (_, l) => {
-          resolve({ ...persistedStore, rehydrate, pausePersist, resumePersist, clearPersistedState })
-          l.unsubscribe();
-        },
-      });
-      dynamicMiddleware.addMiddleware(m.middleware);
-
-      const storedState: Record<string, unknown> = {};
-      await Promise.all(Settings.subscribedSliceIds.map(async (sliceId) => {
-        const s = await getStoredState(sliceId);
-        if (s) storedState[sliceId] = s;
-      }))
-      persistedStore.dispatch(REHYDRATE(storedState) as any);
+      await rehydrate();
+      resolve({ ...persistedStore, rehydrate, clearPersistedState });
     } catch (error) {
       if (process.env.NODE_ENV !== 'production') {
         // Log an error if the stored data fails to load, but don't block the store creation.
@@ -174,7 +145,7 @@ export const configurePersistedStore: <
           error
         );
       }
-      resolve({ ...persistedStore, rehydrate, pausePersist, resumePersist, clearPersistedState });
+      resolve({ ...persistedStore, rehydrate, clearPersistedState });
     }
   });
 }

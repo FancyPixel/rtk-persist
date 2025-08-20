@@ -9,6 +9,7 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
+import { RehydrateActionPayload } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
 import { REHYDRATE, writePersistedStorage } from './utils';
 
@@ -64,12 +65,6 @@ export const createPersistedSlice: <
   Settings.subscribeSlice(sliceOptions.name);
 
   /**
-   * A flag to ensure the rehydration process runs only once per slice.
-   * @internal
-   */
-  let isHydrated = false;
-
-  /**
    * A timeout variable to manage the debouncing of the storage write.
    * @internal
    */
@@ -108,10 +103,8 @@ export const createPersistedSlice: <
     extraReducers: builder => {
       const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       // Add a case to handle the rehydration of state from storage.
-      b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<Record<Name, SliceState> | null>): void | SliceState => {
-        if (!isHydrated) {
-          if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
-        }
+      b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<Name, SliceState>>): void | SliceState => {
+        if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
       });
       // Allow the user to add their own extra reducers.
       sliceOptions.extraReducers?.(b);
@@ -127,10 +120,8 @@ export const createPersistedSlice: <
     startAppListening({
       type: `${slice.name}/${type}`,
       effect: (_action, { getState }) => {
-        if (Settings.isPersistenceEnabled) {
-          const state = getState();
-          onDump(state, sliceOptions.name);
-        }
+        const state = getState();
+        onDump(state, sliceOptions.name);
       },
     });
   });
@@ -143,7 +134,7 @@ export const createPersistedSlice: <
   startAppListening({
     predicate: (action) => {
       // Exclude the slice's own actions (already handled) and the rehydrate action.
-      if (action.type === REHYDRATE.toString() || action.type.startsWith(`${slice.name}/`) || !Settings.isPersistenceEnabled) return false;
+      if (action.type === REHYDRATE.toString() || action.type.startsWith(`${slice.name}/`)) return false;
       return true;
     },
     effect: async (_action, { getState }) => {
@@ -161,7 +152,6 @@ export const createPersistedSlice: <
   startAppListening({
     actionCreator: REHYDRATE,
     effect: () => {
-      isHydrated = true;
       UpdatedAtHelper.onStateChange(sliceOptions.name);
     },
   });

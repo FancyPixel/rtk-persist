@@ -47,19 +47,6 @@ export default class UpdatedAtHelper {
   }
 
   /**
-   * Determines if the stored slice state is newer than the local state.
-   *
-   * @param name - The name of the slice.
-   * @returns A promise that resolves to true if the local state should be overridden by the stored state.
-   *
-   * @internal
-   */
-  static async shouldOverride(name: string): Promise<boolean> {
-    const stored = await this.getStoredUpdateAtOf(name);
-    return (cache[name]?.localUpdatedAt ?? 0) < stored;
-  }
-
-  /**
    * Updates the cache to reflect that a slice has been saved to storage.
    *
    * @param name - The name of the slice.
@@ -94,6 +81,16 @@ export class TestUpdatedAtHelper extends UpdatedAtHelper {
    */
   static _clearCache() {
     cache = {};
+  }
+
+  /**
+   * Manually sets the local timestamp for a slice.
+   * This is useful for simulating scenarios where the local state was updated externally.
+   * @param name - The name of the slice.
+   * @param timestamp - The timestamp to set.
+   */
+  static _setLocalUpdatedAtForTest(name: string, timestamp: number) {
+    cache[name] = { ...(cache[name] || { storedUpdatedAt: 0 }), localUpdatedAt: timestamp };
   }
 
   /**
