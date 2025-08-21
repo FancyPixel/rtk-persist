@@ -10,7 +10,7 @@ Use this project to understand the library's features or as a sandbox for testin
 
 1.  **Clone the repository** (if you haven't already):
     ```bash
-    git clone https://github.com/FancyPixel/rtk-persist.git
+    git clone [https://github.com/FancyPixel/rtk-persist.git](https://github.com/FancyPixel/rtk-persist.git)
     ```
 
 2.  **Navigate to the example app directory**:
@@ -19,59 +19,40 @@ Use this project to understand the library's features or as a sandbox for testin
     ```
 
 3.  **Install dependencies**:
+    This command will also link the local `rtk-persist` library from the parent directory, as specified in `package.json`.
     ```bash
     yarn
     ```
 
 4.  **Run the application**:
     ```bash
-    yarn start
+    yarn dev
     ```
 
 ***
 
 ## 🛠️ Developing and Testing Local Library Changes
 
-If you have made changes to the `rtk-persist` library source code and want to test them in this example app without publishing to npm, follow these steps.
-
-This workflow ensures that the example app uses your latest local code from the library.
+If you have made changes to the `rtk-persist` library source code, the example app can use them directly thanks to the local file path dependency. This workflow ensures that the example app always uses your latest local code from the library.
 
 1.  **Navigate to the Library's Root Directory**:
-    Open a terminal and go to the root of the `rtk-persist` library, not the example app.
+    Open a terminal and go to the root of the `rtk-persist` library (the parent directory of `example`).
     ```bash
     # Assuming you are in the 'example' directory
     cd ..
     ```
 
 2.  **Build the Library**:
-    Compile the library's TypeScript source code into JavaScript.
+    After making any changes to the library's source code, you must rebuild it for the changes to be reflected in the example app.
     ```bash
     yarn build
     ```
 
-3.  **Package the Library**:
-    Create a local tarball (`.tgz` file) of the library. This is what you will install in the example app.
-    ```bash
-    yarn pack
-    ```
-    This command will create a file like `rtk-persist-v1.0.1.tgz` in the library's root directory. Note the exact filename.
-
-4.  **Navigate Back to the Example App Directory**:
+3.  **Run the Example App**:
+    Navigate back to the example app directory and start the development server. The app will automatically use the newly built version of the library.
     ```bash
     cd example
+    yarn dev
     ```
 
-5.  **Install the Local Library Package**:
-    Install the `.tgz` file you created in step 3. This will override the version from the npm registry.
-    ```bash
-    # Replace the filename with the one generated in step 3
-    yarn add file:../rtk-persist-v1.0.1.tgz
-    ```
-
-6.  **Run the Example App**:
-    Start the example application to see your local changes in action.
-    ```bash
-    yarn start
-    ```
-
-Now, the example app is running with your modified version of the `rtk-persist` library. Repeat this process every time you want to test new changes.
+Now, the example app is running with your modified version of the `rtk-persist` library. Simply repeat step 2 every time you want to test new changes.
