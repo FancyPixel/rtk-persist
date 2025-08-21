@@ -30,7 +30,7 @@ describe('createPersistedSlice', () => {
         },
       },
     });
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
@@ -56,11 +56,13 @@ describe('createPersistedSlice', () => {
     });
 
     // Act: Configure the store, which triggers rehydration.
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
     );
+
+    await flushAsync();
 
     // Assert: The rehydrated state includes the persisted value.
     const finalState = store.getState().counter;
@@ -76,7 +78,7 @@ describe('createPersistedSlice', () => {
     });
 
     // Act: Configure the store.
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
@@ -101,7 +103,7 @@ describe('createPersistedSlice', () => {
         });
       },
     });
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
@@ -127,7 +129,7 @@ describe('createPersistedSlice', () => {
       reducers: {},
       // This slice does NOT handle the external action, so its state won't change.
     });
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
@@ -153,7 +155,7 @@ describe('createPersistedSlice', () => {
     });
 
     // Act: Configure the store.
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { counter: counterSlice.reducer } },
       'testApp',
       storage,
@@ -177,7 +179,7 @@ describe('createPersistedSlice', () => {
       initialState: { value: 'b' },
       reducers: { update: (state, action: PayloadAction<string>) => { state.value = action.payload } },
     });
-    const store = await configurePersistedStore(
+    const store = configurePersistedStore(
       { reducer: { [sliceA.reducerPath]: sliceA.reducer, [sliceB.reducerPath]: sliceB.reducer } },
       'testApp',
       storage,

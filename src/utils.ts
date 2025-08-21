@@ -52,7 +52,6 @@ export async function getStoredState<T>(name: string): Promise<Partial<T> | null
   try {
     const storageJson = (await Settings.storageHandler.getItem(getStorageName(name)));
     if (!storageJson) return null;
-    console.log(storageJson)
     return JSON.parse(storageJson);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {

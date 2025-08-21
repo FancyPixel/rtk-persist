@@ -112,12 +112,30 @@ export type PersistedStore<
     StoreEnhancer
   ]>
 > = EnhancedStore<S, A, E> & {
-  /** * Manually triggers the rehydration of the store's state from storage.
+  /**
+   * Manually triggers the rehydration of the store's state from storage.
    * @returns A promise that resolves when rehydration is complete.
    */
   rehydrate: () => Promise<void>;
-  /** * Clears all persisted state for the application from storage.
+  /**
+   * Clears all persisted state for the application from storage.
    * @returns A promise that resolves when the state has been cleared.
    */
   clearPersistedState: () => Promise<void>;
+}
+
+/**
+ * Defines the configuration options for the persistence behavior.
+ * @interface PersistenceOptions
+ * @public
+ */
+export interface PersistenceOptions {
+  /** The maximum time in milliseconds to wait for rehydration to complete before timing out. Defaults to 5000. */
+  rehydrationTimeout?: number;
+  /** A callback invoked when the rehydration process begins. */
+  onRehydrationStart?: () => void;
+  /** A callback invoked when the rehydration process completes successfully. */
+  onRehydrationSuccess?: () => void;
+  /** A callback invoked if an error occurs during rehydration. */
+  onRehydrationError?: (error: unknown) => void;
 }

@@ -104,6 +104,7 @@ describe("configurePersistedStore", () => {
       "mockApp",
       storage,
     );
+    await flushAsync();
     const state = store.getState() as RootState;
     expect(state[mockSliceName].counter).toBe(50);
   });
@@ -251,6 +252,73 @@ describe("configurePersistedStore", () => {
       // Check that both parts of the state were correctly rehydrated.
       expect(state.pSlice.value).toBe("B");
       expect(state.manual.count).toBe(1);
+    });
+  });
+
+  describe("rehydration callbacks", () => {
+    it("should call onRehydrationStart, and onRehydrationSuccess on successful rehydration", async () => {
+      const onRehydrationStart = jest.fn();
+      const onRehydrationSuccess = jest.fn();
+      const onRehydrationError = jest.fn();
+
+      const slice = createPersistedSlice({
+        name: mockSliceName,
+        initialState: sliceInitialState,
+        reducers: {},
+      });
+
+      await configurePersistedStore(
+        {
+          reducer: { [slice.name]: slice.reducer },
+        },
+        "mockApp",
+        storage,
+        {
+          onRehydrationStart,
+          onRehydrationSuccess,
+          onRehydrationError,
+        }
+      );
+
+      await flushAsync();
+
+      expect(onRehydrationStart).toHaveBeenCalledTimes(1);
+      expect(onRehydrationSuccess).toHaveBeenCalledTimes(1);
+      expect(onRehydrationError).not.toHaveBeenCalled();
+    });
+
+    it("should call onRehydrationStart and onRehydrationError on failed rehydration", async () => {
+      const onRehydrationStart = jest.fn();
+      const onRehydrationSuccess = jest.fn();
+      const onRehydrationError = jest.fn();
+
+      // Simulate a storage failure
+      storage.getItem = jest.fn().mockRejectedValue(new Error("Storage failed"));
+
+      const slice = createPersistedSlice({
+        name: mockSliceName,
+        initialState: sliceInitialState,
+        reducers: {},
+      });
+
+      await configurePersistedStore(
+        {
+          reducer: { [slice.name]: slice.reducer },
+        },
+        "mockApp",
+        storage,
+        {
+          onRehydrationStart,
+          onRehydrationSuccess,
+          onRehydrationError,
+        }
+      );
+
+      await flushAsync();
+
+      expect(onRehydrationStart).toHaveBeenCalledTimes(1);
+      expect(onRehydrationSuccess).toHaveBeenCalledTimes(1);
+      expect(onRehydrationError).not.toHaveBeenCalled();
     });
   });
 });
