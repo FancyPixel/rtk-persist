@@ -2,40 +2,42 @@ import { Action, ActionReducerMapBuilder, CaseReducer, Draft } from "@reduxjs/to
 
 /**
  * A higher-order reducer that wraps a case reducer and invokes a callback
- * every time the reducer is executed.
- * @param r - The original case reducer.
- * @param onStateUpdate - The callback to invoke on state updates.
+ * every time the reducer is executed. This is the core mechanism for tracking
+ * state changes that need to be persisted.
+ * @param r - The original case reducer function.
+ * @param onStateUpdate - The callback invoked after the original reducer. It receives the potentially mutated state draft and the action.
  * @returns The wrapped case reducer.
  * @internal
  */
-const persistReducer = <SliceState>(r: CaseReducer<SliceState, Action>, onStateUpdate: () => void) => (s: Draft<SliceState>, a: Action): void | SliceState | Draft<SliceState> => {
+const persistReducer = <SliceState>(r: CaseReducer<SliceState, Action>, onStateUpdate: (s: Draft<SliceState>, a: Action) => void) => (s: Draft<SliceState>, a: Action): void | SliceState | Draft<SliceState> => {
   const ns = r(s, a);
-  onStateUpdate();
+  onStateUpdate(s, a);
   if (ns) return ns;
 };
 
 /**
  * A wrapper for the `ActionReducerMapBuilder` that automatically hooks into
- * state changes to track updates for persistence.
+ * state changes to track updates for persistence. Every reducer added via this
+ * builder will be wrapped to call the `onStateUpdate` callback.
  *
  * @param builder The original `ActionReducerMapBuilder` from Redux Toolkit.
- * @param onStateUpdate The callback to invoke when the state is changed.
+ * @param onStateUpdate The callback to invoke after any case reducer has been executed. It receives the state draft and the action.
  *
  * @internal
  */
 export class Builder<SliceState> implements ActionReducerMapBuilder<SliceState>
 {
   builder: ActionReducerMapBuilder<SliceState>;
-  onStateUpdate: () => void;
+  onStateUpdate: (s: Draft<SliceState>, a: Action) => void;
 
   /**
    * Creates an instance of the persistence-aware builder.
    * @param builder The original `ActionReducerMapBuilder`.
-   * @param onStateUpdate The callback to invoke when the state is updated.
+   * @param onStateUpdate The callback to invoke when the state is updated by any of the reducers.
    */
   constructor(
     builder: ActionReducerMapBuilder<SliceState>,
-    onStateUpdate: () => void,
+    onStateUpdate: (s: Draft<SliceState>, a: Action) => void,
   ) {
     this.builder = builder;
     this.onStateUpdate = onStateUpdate;
@@ -72,7 +74,7 @@ export class Builder<SliceState> implements ActionReducerMapBuilder<SliceState>
    * they were defined in - even if a case reducer already matched.
    * All calls to `builder.addMatcher` must come after any calls to `builder.addCase` and before any calls to `builder.addDefaultCase`.
    * @param matcher - A matcher function. In TypeScript, this should be a [type predicate](https://www.typescriptlang.org/docs/handbook/2/narrowing.html#using-type-predicates)
-   *   function
+   * function
    * @param reducer - The actual case reducer function.
    *
    * @example

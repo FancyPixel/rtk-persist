@@ -25,12 +25,12 @@ export const getStorageName = (name: string) => `persist:${Settings.applicationI
  *
  * @internal
  */
-export async function writePersistedStorage<Name extends string, SliceState>(state: Record<Name, SliceState>, name: Name) {
+export async function writePersistedStorage<Name extends string, SliceState>(state: SliceState, name: Name) {
   const storageName = getStorageName(name);
   try {
     await Settings.storageHandler.setItem(
       storageName,
-      JSON.stringify(state[name]),
+      JSON.stringify(state),
     );
     UpdatedAtHelper.onSave(name);
   } catch (error) {
@@ -52,6 +52,7 @@ export async function getStoredState<T>(name: string): Promise<Partial<T> | null
   try {
     const storageJson = (await Settings.storageHandler.getItem(getStorageName(name)));
     if (!storageJson) return null;
+    console.log(storageJson)
     return JSON.parse(storageJson);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {

@@ -82,3 +82,10 @@ export const mockPersistedSliceFactory = () => createPersistedSlice({
     getCounter: (state) => state.counter,
   }
 });
+
+// Helper function to robustly flush all pending promises and timers.
+export const flushAsync = async () => {
+  await Promise.resolve();
+  await new Promise((resolve) => jest.requireActual("timers").setImmediate(resolve));
+  jest.advanceTimersByTime(150);
+}

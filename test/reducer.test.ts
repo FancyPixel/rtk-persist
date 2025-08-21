@@ -43,6 +43,11 @@ describe('createPersistedReducer', () => {
     expect(newState).toEqual(initialState);
   });
 
+  it('should have the correct reducerName property attached', () => {
+    const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
+    expect(reducer.reducerName).toBe(reducerName);
+  });
+
   // --- Rehydration Tests ---
 
   describe('Rehydration', () => {

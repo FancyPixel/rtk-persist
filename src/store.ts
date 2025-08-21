@@ -51,6 +51,8 @@ export const configurePersistedStore: <
   storageHandler: StorageHandler,
   persistenceOptions?: {
     rehydrationTimeout?: number;
+    // TODO: add manualPersistence
+    // TODO: add hydration callbacks
   }
 ) => {
   // Set the default storage handler and the applicationId

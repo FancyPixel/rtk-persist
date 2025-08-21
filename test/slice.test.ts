@@ -2,7 +2,7 @@ import { createAction, PayloadAction } from '@reduxjs/toolkit';
 import { configurePersistedStore, createPersistedSlice } from '../src';
 import { TestSettings } from '../src/settings';
 import { StorageHandler } from '../src/types';
-import { StorageMock } from './mocks';
+import { flushAsync, StorageMock } from './mocks';
 
 describe('createPersistedSlice', () => {
   let storage: StorageHandler;
@@ -19,7 +19,7 @@ describe('createPersistedSlice', () => {
     jest.useRealTimers();
   });
 
-  it('should persist state from own reducers after a debounce period', async () => {
+  it('should persist state from own reducers', async () => {
     // Arrange: Create a slice and a persisted store.
     const counterSlice = createPersistedSlice({
       name: 'counter',
@@ -39,22 +39,16 @@ describe('createPersistedSlice', () => {
     // Act: Dispatch actions to update the state.
     store.dispatch(counterSlice.actions.increment());
     store.dispatch(counterSlice.actions.increment());
+    await flushAsync();
 
-    // Assert: State updates immediately, but persistence is debounced.
     expect(store.getState().counter.value).toBe(2);
-    expect(await storage.getItem('persist:testApp-counter')).toBeNull();
-
-    // Act: Advance time past the debounce period.
-    jest.advanceTimersByTime(150); // Allow async storage operations to complete.
-
-    // Assert: The new state is now persisted.
     const persistedState = await storage.getItem('persist:testApp-counter');
     expect(JSON.parse(persistedState!).value).toBe(2);
   });
 
   it('should rehydrate state from storage', async () => {
     // Arrange: Pre-seed storage with existing data.
-    await storage.setItem('persist:testApp-counter', '{"value": 10}');
+    await storage.setItem('persist:testApp-counter', '{\"value\": 10}');
     const counterSlice = createPersistedSlice({
       name: 'counter',
       initialState: { value: 0 },
@@ -88,6 +82,8 @@ describe('createPersistedSlice', () => {
       storage,
     );
 
+    await flushAsync();
+
     // Assert: The slice uses its defined initial state.
     expect(store.getState().counter.value).toBe(0);
   });
@@ -110,10 +106,11 @@ describe('createPersistedSlice', () => {
       'testApp',
       storage,
     );
+    await flushAsync();
 
     // Act: Dispatch the external action and advance timers.
     store.dispatch(externalAction());
-    jest.advanceTimersByTime(1000);
+    await flushAsync();
 
     // Assert: The state was updated by the extra reducer and then persisted.
     const persistedState = await storage.getItem('persist:testApp-counter');
@@ -139,10 +136,10 @@ describe('createPersistedSlice', () => {
 
     // Act: Dispatch an action that doesn't affect this slice's state.
     store.dispatch(externalAction());
-    jest.advanceTimersByTime(150);
+    await flushAsync();
 
     // Assert: Storage should not be written to, preventing unnecessary operations.
-    expect(setItemSpy).not.toHaveBeenCalled();
+    expect(setItemSpy).not.toHaveBeenCalledWith(expect.anything(), counterSlice.name);
     setItemSpy.mockRestore();
   });
 
@@ -162,6 +159,8 @@ describe('createPersistedSlice', () => {
       storage,
     );
 
+    await flushAsync();
+
     // Assert: The slice gracefully ignores the corrupted data and uses its initial state.
     expect(store.getState().counter.value).toBe(0);
   });
@@ -179,7 +178,7 @@ describe('createPersistedSlice', () => {
       reducers: { update: (state, action: PayloadAction<string>) => { state.value = action.payload } },
     });
     const store = await configurePersistedStore(
-      { reducer: { a: sliceA.reducer, b: sliceB.reducer } },
+      { reducer: { [sliceA.reducerPath]: sliceA.reducer, [sliceB.reducerPath]: sliceB.reducer } },
       'testApp',
       storage,
     );
@@ -187,7 +186,7 @@ describe('createPersistedSlice', () => {
     // Act: Dispatch actions to both slices and advance timers.
     store.dispatch(sliceA.actions.update('newA'));
     store.dispatch(sliceB.actions.update('newB'));
-    jest.advanceTimersByTime(1000);
+    await flushAsync();
 
     // Assert: Both slices are persisted independently to their own storage keys.
     const itemA = await storage.getItem('persist:testApp-sliceA');

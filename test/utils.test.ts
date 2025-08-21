@@ -43,7 +43,7 @@ describe('Utils', () => {
 
   describe('writePersistedStorage', () => {
     it('should write the state to storage and call onSave', async () => {
-      await writePersistedStorage({ [sliceName]: initialState }, sliceName);
+      await writePersistedStorage(initialState, sliceName);
       const storedValue = await storage.getItem(getStorageName(sliceName));
       expect(storedValue).toBe(JSON.stringify(initialState));
       expect(UpdatedAtHelper.onSave).toHaveBeenCalledWith(sliceName);
@@ -56,7 +56,7 @@ describe('Utils', () => {
       const errorMessage = 'Failed to write';
       storage.setItem = jest.fn().mockRejectedValue(new Error(errorMessage));
 
-      await writePersistedStorage({ [sliceName]: initialState }, sliceName);
+      await writePersistedStorage(initialState, sliceName);
 
       expect(consoleErrorSpy).toHaveBeenCalledWith(
         'rtk-persist: Failed to save state.',

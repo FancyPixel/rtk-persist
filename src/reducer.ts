@@ -92,13 +92,12 @@ export const createPersistedReducer: <
    * Debounces the `writePersistedStorage` function to prevent excessive writes
    * during rapid state changes. The state is saved 100ms after the last change.
    * @param state - The current root state of the Redux store.
-   * @param name - The name of the slice to persist.
    * @internal
    */
-  const onDump = (state: Record<ReducerName, S>, name: ReducerName) => {
+  const onDump = (state: Record<ReducerName, S>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      writePersistedStorage(state, name);
+      writePersistedStorage(state[reducerName], reducerName);
     }, 100);
   };
 
@@ -117,13 +116,13 @@ export const createPersistedReducer: <
    * @internal
    */
   const reducer = createReducer(initialState, builder => {
-    const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     // Add a case to handle the rehydration of state from storage.
-    b.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<ReducerName, S>>): void | S => {
+    builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<ReducerName, S>>): void | S => {
       if (action.payload?.[reducerName]) return action.payload[reducerName];
     });
+    const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     mapOrBuilderCallback(b);
-  });
+  }) as ReducerWithInitialState<S>;
 
   /**
    * Listens for any action (except rehydration) to check if the state
@@ -139,21 +138,26 @@ export const createPersistedReducer: <
     effect: async (_action, { getState }) => {
       if (!await UpdatedAtHelper.shouldSave(reducerName)) return;
       const state = getState();
-      onDump(state, reducerName);
+      onDump(state);
     },
   });
 
   /**
-   * Listens for the rehydration action to update the local timestamp and
-   * set the `isHydrated` flag to prevent subsequent rehydrations.
+   * Listens for the rehydration action to update the local timestamp
    * @internal
    */
   startAppListening({
     actionCreator: REHYDRATE,
-    effect: () => {
-      UpdatedAtHelper.onStateChange(reducerName);
-    },
+    effect: () => UpdatedAtHelper.onSave(reducerName),
   });
+
+  /**
+   * Attaches the unique reducer name to the reducer function itself.
+   * This allows other parts of the persistence logic to identify the reducer
+   * and its corresponding state slice.
+   * @public
+   */
+  reducer.reducerName = reducerName;
 
   return reducer;
 };

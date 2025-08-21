@@ -10,6 +10,7 @@ import {
 import { TestSettings } from "../src/settings";
 import { writePersistedStorage } from "../src/utils";
 import {
+  flushAsync,
   mockPersistedSliceFactory,
   mockSliceName,
   sliceInitialState,
@@ -26,8 +27,13 @@ describe("configurePersistedStore", () => {
   // Before each test, create a new storage mock and clear all global settings
   // to ensure tests are isolated from one another.
   beforeEach(() => {
+    jest.useFakeTimers();
     storage = new StorageMock();
     TestSettings.restoreDefaults();
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
   });
 
   it("should create a valid Redux store", async () => {
@@ -119,10 +125,8 @@ describe("configurePersistedStore", () => {
     });
 
     it("should clear the persisted state from storage", async () => {
-      jest.useFakeTimers();
       store.dispatch(mockSlice.actions.increment());
-      jest.advanceTimersByTime(150);
-      jest.useRealTimers();
+      await flushAsync();
 
       let stored = await storage.getItem(`persist:mockApp-${mockSliceName}`);
       expect(stored).not.toBeNull();
@@ -144,7 +148,7 @@ describe("configurePersistedStore", () => {
 
     it("should trigger rehydration when a reducer is replaced", async () => {
       const newMockSlice = mockPersistedSliceFactory();
-      writePersistedStorage({ [mockSliceName]: { counter: 123 } }, mockSliceName);
+      writePersistedStorage({ counter: 123 }, mockSliceName);
 
       const rehydrationComplete = new Promise<void>((resolve) => {
         const unsubscribe = store.subscribe(() => {
@@ -179,12 +183,17 @@ describe("configurePersistedStore", () => {
         },
       });
 
-      // Mark the manual reducer for persistence.
-      const persistedManualReducer = createPersistedReducer('manual', { count: 0 }, (b) => {
-        b.addCase('manual/increment', (state) => {
-          return { ...state, count: state.count + 1 };
-        });
-      });
+      // A persisted reducer created with the builder syntax to ensure it's
+      // correctly named and subscribed to the persistence middleware.
+      const persistedManualReducer = createPersistedReducer(
+        "manual",
+        { count: 0 },
+        (builder) => {
+          builder.addCase("manual/increment", (state) => {
+            state.count += 1;
+          });
+        },
+      );
 
       const store = await configurePersistedStore(
         {
@@ -197,6 +206,8 @@ describe("configurePersistedStore", () => {
         storage,
       );
 
+      await flushAsync();
+
       // Verify both the slice and the manual reducer are subscribed for persistence.
       expect(TestSettings.subscribedSliceIds).toEqual([
         "pSlice",
@@ -204,12 +215,10 @@ describe("configurePersistedStore", () => {
       ]);
 
       // Dispatch actions to both parts of the state.
-      jest.useFakeTimers();
       store.dispatch(persistedSlice.actions.setValue("B"));
-      store.dispatch({ type: 'manual/increment' });
+      store.dispatch({ type: "manual/increment" });
 
-      jest.advanceTimersByTime(150); // Allow persistence to occur.
-      jest.useRealTimers();
+      await flushAsync();
 
       // Check that both were persisted correctly under their own keys.
       const persistedSliceStored = await storage.getItem(
@@ -223,6 +232,8 @@ describe("configurePersistedStore", () => {
 
       // Create a new store to test rehydration.
       TestSettings.restoreDefaults();
+      TestSettings.subscribeSlice(persistedSlice.name);
+      TestSettings.subscribeSlice(persistedManualReducer.reducerName);
       const newStore = await configurePersistedStore(
         {
           reducer: {
@@ -233,6 +244,8 @@ describe("configurePersistedStore", () => {
         "mockApp",
         storage,
       );
+
+      await flushAsync();
 
       const state = newStore.getState();
       // Check that both parts of the state were correctly rehydrated.

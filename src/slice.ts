@@ -74,13 +74,12 @@ export const createPersistedSlice: <
    * Debounces the `writePersistedStorage` function to prevent excessive writes
    * during rapid state changes. The state is saved 100ms after the last change.
    * @param state - The current root state of the Redux store.
-   * @param name - The name of the slice to persist.
    * @internal
    */
-  const onDump = (state: Record<Name, SliceState>, name: Name) => {
+  const onDump = (state: Record<Name | ReducerPath, SliceState>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      writePersistedStorage(state, name);
+      writePersistedStorage(state[sliceOptions.reducerPath ?? sliceOptions.name], sliceOptions.name);
     }, 100);
   };
 
@@ -90,7 +89,7 @@ export const createPersistedSlice: <
    */
   const startAppListening =
     listenerMiddleware.startListening.withTypes<
-      Record<Name, SliceState>
+      Record<Name | ReducerPath, SliceState>
     >();
 
   /**
@@ -101,11 +100,11 @@ export const createPersistedSlice: <
   const slice = createSlice({
     ...sliceOptions,
     extraReducers: builder => {
-      const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       // Add a case to handle the rehydration of state from storage.
-      b.builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<Name, SliceState>>): void | SliceState => {
+      builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<Name, SliceState>>): void | SliceState => {
         if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
       });
+      const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
       // Allow the user to add their own extra reducers.
       sliceOptions.extraReducers?.(b);
     },
@@ -119,9 +118,9 @@ export const createPersistedSlice: <
   Object.keys(slice.actions).forEach(type => {
     startAppListening({
       type: `${slice.name}/${type}`,
-      effect: (_action, { getState }) => {
+      effect: (_action, { getState,  }) => {
         const state = getState();
-        onDump(state, sliceOptions.name);
+        onDump(state);
       },
     });
   });
@@ -140,20 +139,17 @@ export const createPersistedSlice: <
     effect: async (_action, { getState }) => {
       if (!await UpdatedAtHelper.shouldSave(sliceOptions.name)) return;
       const state = getState();
-      onDump(state, sliceOptions.name);
+      onDump(state);
     },
   });
 
   /**
-   * Listens for the rehydration action to update the local timestamp and
-   * set the `isHydrated` flag to prevent subsequent rehydrations.
+   * Listens for the rehydration action to update the local timestamp
    * @internal
    */
   startAppListening({
     actionCreator: REHYDRATE,
-    effect: () => {
-      UpdatedAtHelper.onStateChange(sliceOptions.name);
-    },
+    effect: () => UpdatedAtHelper.onSave(sliceOptions.name),
   });
 
   return slice;
