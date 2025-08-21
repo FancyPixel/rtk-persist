@@ -2,16 +2,15 @@ import {
   createSlice,
   CreateSliceOptions,
   PayloadAction,
-  Slice,
   SliceCaseReducers,
   SliceSelectors
 } from '@reduxjs/toolkit';
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { RehydrateActionPayload } from './types';
+import { NestedPath, PersistedSlice, RehydrateActionPayload } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { REHYDRATE, writePersistedStorage } from './utils';
+import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
 
 /**
  * A wrapper around the standard RTK `createSlice()` function that adds
@@ -21,18 +20,18 @@ import { REHYDRATE, writePersistedStorage } from './utils';
  * This function requires the use of {@link configurePersistedStore}.
  *
  * @param sliceOptions - The standard `CreateSliceOptions` object from Redux Toolkit.
- * @returns A Redux slice object with persistence enabled.
+ * @param nesting - An optional dot-separated string path indicating where the slice is nested within the root state.
+ * @returns A Redux slice object with persistence enabled, enhanced with a `nestedPath` property that has a correctly inferred literal type.
  *
  * @public
  */
-export const createPersistedSlice: <
+export const createPersistedSlice = <
   SliceState,
-  Name extends string = string,
-  PCR extends
-    SliceCaseReducers<SliceState> = SliceCaseReducers<SliceState>,
+  Name extends string,
+  PCR extends SliceCaseReducers<SliceState>,
   ReducerPath extends string = Name,
-  PeristedSelectors extends
-    SliceSelectors<SliceState> = SliceSelectors<SliceState>,
+  PeristedSelectors extends SliceSelectors<SliceState> = SliceSelectors<SliceState>,
+  Nesting extends string | undefined = undefined
 >(
   sliceOptions: CreateSliceOptions<
     SliceState,
@@ -41,28 +40,20 @@ export const createPersistedSlice: <
     ReducerPath,
     PeristedSelectors
   >,
-) => Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors> = <
-  SliceState,
-  Name extends string = string,
-  PCR extends
-    SliceCaseReducers<SliceState> = SliceCaseReducers<SliceState>,
-  ReducerPath extends string = Name,
-  PeristedSelectors extends
-    SliceSelectors<SliceState> = SliceSelectors<SliceState>,
->(
-  sliceOptions: CreateSliceOptions<
-    SliceState,
-    PCR,
-    Name,
-    ReducerPath,
-    PeristedSelectors
-  >,
-) => {
+  nesting?: Nesting,
+): PersistedSlice<SliceState, PCR, Name, ReducerPath, PeristedSelectors, Nesting> => {
   /**
    * Registers the slice's name to the list of persisted slices.
    * This allows the persistence logic to identify which parts of the state to manage.
    */
   Settings.subscribeSlice(sliceOptions.name);
+
+  const name = sliceOptions.reducerPath ?? sliceOptions.name;
+  /**
+   * The full dot-separated path to the slice's state within the root state object.
+   * @internal
+   */
+  const nestedPath = (nesting && nesting !== '' ? `${nesting}.${name}` : name) as NestedPath<ReducerPath, Nesting>;
 
   /**
    * A timeout variable to manage the debouncing of the storage write.
@@ -76,10 +67,12 @@ export const createPersistedSlice: <
    * @param state - The current root state of the Redux store.
    * @internal
    */
-  const onDump = (state: Record<Name | ReducerPath, SliceState>) => {
+  const onDump = (state: Record<string, any>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      writePersistedStorage(state[sliceOptions.reducerPath ?? sliceOptions.name], sliceOptions.name);
+      // Use deepGetByPath with the single correct path
+      const sliceState = deepGetByPath(state, nestedPath);
+      writePersistedStorage(sliceState, sliceOptions.name);
     }, 100);
   };
 
@@ -88,9 +81,7 @@ export const createPersistedSlice: <
    * @internal
    */
   const startAppListening =
-    listenerMiddleware.startListening.withTypes<
-      Record<Name | ReducerPath, SliceState>
-    >();
+    listenerMiddleware.startListening.withTypes<Record<string, any>>();
 
   /**
    * Creates the slice using the default options passed by the user,
@@ -118,7 +109,7 @@ export const createPersistedSlice: <
   Object.keys(slice.actions).forEach(type => {
     startAppListening({
       type: `${slice.name}/${type}`,
-      effect: (_action, { getState,  }) => {
+      effect: (_action, { getState }) => {
         const state = getState();
         onDump(state);
       },
@@ -152,5 +143,5 @@ export const createPersistedSlice: <
     effect: () => UpdatedAtHelper.onSave(sliceOptions.name),
   });
 
-  return slice;
+  return { ...slice, nestedPath };
 };

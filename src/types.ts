@@ -6,6 +6,9 @@ import {
   Middleware,
   Reducer,
   SerializableStateInvariantMiddlewareOptions,
+  Slice,
+  SliceCaseReducers,
+  SliceSelectors,
   StoreEnhancer,
   ThunkMiddleware,
   Tuple,
@@ -86,13 +89,48 @@ export type ExtractDispatchExtensions<M> = M extends Tuple<infer MiddlewareTuple
 export type NotFunction<T> = T extends Function ? never : T;
 
 /**
- * A utility type that enhances a Redux reducer with properties needed for persistence,
- * such as its name and a function to get its initial state.
+ * A conditional type that constructs the full dot-notation path for a nested slice or reducer.
+ * If `Nesting` is undefined or an empty string, it returns the `ReducerPath` directly.
+ * Otherwise, it prepends the nesting path.
+ *
  * @internal
  */
-export interface ReducerWithInitialState<S extends NotFunction<any>> extends Reducer<S> {
-  getInitialState: () => S;
-  reducerName: string;
+export type NestedPath<
+  ReducerPath extends string,
+  Nesting extends string | undefined
+> = Nesting extends '' | undefined
+    ? ReducerPath
+    : `${NonNullable<Nesting>}.${ReducerPath}`
+
+/**
+ * A utility type that enhances a Redux reducer with properties needed for persistence.
+ * It adds `reducerName` and the calculated `nestedPath` to the standard reducer type.
+ * @internal
+ */
+export type PersistedReducer<
+  S extends NotFunction<any>,
+  ReducerName extends string,
+  Nesting extends string | undefined
+> = Reducer<S> & {
+  reducerName: ReducerName;
+  nestedPath: NestedPath<ReducerName, Nesting>;
+};
+
+/**
+ * A utility type that enhances a Redux slice with the `nestedPath` property,
+ * which represents its full path within the root state.
+ *
+ * @internal
+ */
+export type PersistedSlice<
+  SliceState,
+  PCR extends SliceCaseReducers<SliceState>,
+  Name extends string,
+  ReducerPath extends string,
+  PeristedSelectors extends SliceSelectors<SliceState>,
+  Nesting extends string | undefined
+> = Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors> & {
+  nestedPath: NestedPath<ReducerPath, Nesting>;
 };
 
 /**

@@ -137,12 +137,10 @@ export const configurePersistedStore: <
   persistedStore.replaceReducer = (nR) => {
     _replaceReducer.call(persistedStore, nR);
     rehydrate();
-  }
+  };
 
   // Asynchronously trigger the initial rehydration.
   rehydrate();
-
-
 
   return { ...persistedStore, rehydrate, clearPersistedState };
 }

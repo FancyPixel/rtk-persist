@@ -3,6 +3,7 @@ import { StorageHandler } from '../src/types';
 import UpdatedAtHelper from '../src/updatedAtHelper';
 import {
   clearPersistedStorage,
+  deepGetByPath,
   getStorageName,
   getStoredState,
   REHYDRATE,
@@ -107,6 +108,46 @@ describe('Utils', () => {
 
       const storedValue = await storage.getItem(storageKey);
       expect(storedValue).toBeNull();
+    });
+  });
+
+  // Tests for the deepGetByPaths function
+  describe('deepGetByPaths', () => {
+    const data = {
+      foo: {
+        foz: [1, 2, 3],
+        bar: { baz: ['a', 'b', 'c'] },
+      },
+      list: [{ item: 'one' }, { item: 'two' }],
+      nullValue: null,
+    };
+
+    it('should retrieve deeply nested values using dot and bracket notation', () => {
+      const result = deepGetByPath(data, 'foo.foz[2]');
+      expect(result).toEqual(3);
+    });
+
+    it('should return null for paths that do not exist', () => {
+      const result = deepGetByPath(data, 'foo.nonexistent');
+      expect(result).toEqual(null);
+    });
+
+    it('should handle a mix of valid and invalid paths', () => {
+      const result = deepGetByPath(
+        data,
+        'list[0].item'
+      );
+      expect(result).toEqual('one');
+    });
+
+    it('should return null when attempting to access properties on non-objects', () => {
+      const result = deepGetByPath(data, 'foo.foz[0].length');
+      expect(result).toEqual(null);
+    });
+
+    it('should return the original object for an empty path string', () => {
+      const result = deepGetByPath(data, '');
+      expect(result).toEqual(data);
     });
   });
 });

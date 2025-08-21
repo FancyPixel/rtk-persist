@@ -6,9 +6,9 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { NotFunction, ReducerWithInitialState, RehydrateActionPayload } from './types';
+import { NestedPath, NotFunction, PersistedReducer, RehydrateActionPayload } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
-import { REHYDRATE, writePersistedStorage } from './utils';
+import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
 
 /**
  * A utility function that creates a persisted reducer. It wraps the standard
@@ -24,6 +24,7 @@ import { REHYDRATE, writePersistedStorage } from './utils';
  * @param reducerName - A unique string name for the reducer. This name is used as the key in the root state object and for storage.
  * @param initialState - The initial state for the reducer. Can be a value or a lazy initializer function.
  * @param mapOrBuilderCallback - A callback that receives a `builder` object to define case reducers via `builder.addCase`, `builder.addMatcher`, and `builder.addDefaultCase`.
+ * @param nesting - An optional dot-separated string path indicating where the reducer is nested within the root state.
  * @example
 ```ts
 import {
@@ -64,23 +65,27 @@ const reducer = createPersistedReducer(
 ```
  * @public
  */
-export const createPersistedReducer: <
+export const createPersistedReducer = <
   ReducerName extends string,
-  S extends NotFunction<any>
+  S extends NotFunction<any>,
+  Nesting extends string | undefined = undefined
 >(
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-) => ReducerWithInitialState<S> = <ReducerName extends string, S extends NotFunction<any>>(
-  reducerName: ReducerName,
-  initialState: S | (() => S),
-  mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-) => {
+  nesting?: Nesting,
+): PersistedReducer<S, ReducerName, Nesting> => {
   /**
    * Registers the reducer's name to the list of persisted slices.
    * This allows the persistence logic to identify which parts of the state to manage.
    */
   Settings.subscribeSlice(reducerName);
+
+  /**
+   * The full dot-separated path to the slice's state within the root state object.
+   * @internal
+   */
+  const nestedPath = (nesting && nesting !== '' ? `${nesting}.${reducerName}` : reducerName) as NestedPath<ReducerName, Nesting>;
 
   /**
    * A timeout variable to manage the debouncing of the storage write.
@@ -94,10 +99,11 @@ export const createPersistedReducer: <
    * @param state - The current root state of the Redux store.
    * @internal
    */
-  const onDump = (state: Record<ReducerName, S>) => {
+  const onDump = (state: Record<string, any>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      writePersistedStorage(state[reducerName], reducerName);
+      const [reducerState] = deepGetByPath(state, nestedPath);
+      writePersistedStorage(reducerState, reducerName);
     }, 100);
   };
 
@@ -106,9 +112,7 @@ export const createPersistedReducer: <
    * @internal
    */
   const startAppListening =
-    listenerMiddleware.startListening.withTypes<
-      Record<ReducerName, S>
-    >();
+    listenerMiddleware.startListening.withTypes<Record<string, any>>();
 
   /**
    * Creates the main reducer, extending the builder to track state changes
@@ -122,7 +126,7 @@ export const createPersistedReducer: <
     });
     const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, reducerName));
     mapOrBuilderCallback(b);
-  }) as ReducerWithInitialState<S>;
+  });
 
   /**
    * Listens for any action (except rehydration) to check if the state
@@ -151,13 +155,10 @@ export const createPersistedReducer: <
     effect: () => UpdatedAtHelper.onSave(reducerName),
   });
 
-  /**
-   * Attaches the unique reducer name to the reducer function itself.
-   * This allows other parts of the persistence logic to identify the reducer
-   * and its corresponding state slice.
-   * @public
-   */
-  reducer.reducerName = reducerName;
-
-  return reducer;
+  // This is the cleanest way to construct the final object and apply the
+  // necessary type assertion once.
+  return Object.assign(reducer, {
+    reducerName,
+    nestedPath,
+  }) as PersistedReducer<S, ReducerName, Nesting>;
 };
