@@ -82,8 +82,12 @@ export const configurePersistedStore: <
    * @public
    */
   const rehydrate = () => new Promise<void>(async (resolve, reject) => {
+    persistenceOptions?.onRehydrationStart?.();
+
     const signalTimeout = setTimeout(() => {
-      reject(new Error("Rehydration timed out"));
+      const timeoutError = new Error(`Rehydration timed out after ${persistenceOptions?.rehydrationTimeout}ms`);
+      persistenceOptions?.onRehydrationError?.(timeoutError);
+      reject(timeoutError);
     }, persistenceOptions?.rehydrationTimeout);
     const m = createListenerMiddleware();
     m.startListening({
@@ -91,6 +95,7 @@ export const configurePersistedStore: <
       effect: (_, l) => {
         clearTimeout(signalTimeout);
         l.unsubscribe();
+        persistenceOptions?.onRehydrationSuccess?.();
         resolve();
       },
     });
@@ -105,6 +110,7 @@ export const configurePersistedStore: <
         persistedStore.dispatch(REHYDRATE(storedState) as any);
     } catch (error) {
         clearTimeout(signalTimeout);
+        persistenceOptions?.onRehydrationError?.(error);
         reject(error);
     }
   });
@@ -133,11 +139,8 @@ export const configurePersistedStore: <
     rehydrate();
   }
 
-  // Asynchronously trigger the initial rehydration and execute callbacks.
-  persistenceOptions?.onRehydrationStart?.();
-  rehydrate()
-    .then(persistenceOptions?.onRehydrationSuccess)
-    .catch(persistenceOptions?.onRehydrationError);
+  // Asynchronously trigger the initial rehydration.
+  rehydrate();
 
 
 

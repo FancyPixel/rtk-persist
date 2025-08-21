@@ -119,26 +119,18 @@ Whichever option you choose, you must use `configurePersistedStore` and provide 
 ```
 // app/store.ts
 import { configurePersistedStore } from 'rtk-persist';
-// Import your slice reducer (Option 1)
-import counterSliceReducer from '../features/counter/counterSlice';
-// OR import your persisted reducer (Option 2)
+import { counterSlice } from '../features/counter/counterSlice';
 import { reducer as counterReducer } from '../features/counter/counterReducer';
 
 // For web, use localStorage or sessionStorage
 const storage = localStorage;
 
-// For React Native, you would use:
-// import AsyncStorage from '@react-native-async-storage/async-storage';
-// const storage = AsyncStorage;
-
 export const store = configurePersistedStore(
   {
     reducer: {
-      // For Option 1 (createPersistedSlice)
-      counter: counterSliceReducer,
-
-      // For Option 2 (createPersistedReducer)
-      // counter: counterReducer,
+      // IMPORTANT: The key must match the slice's `reducerPath` (which defaults to the slice's name) or the reducer's `reducerName`.
+      [counterSlice.reducerPath]: counterSlice.reducer,
+      // [counterReducer.reducerName]: counterReducer,
     },
   },
   'applicationId',
@@ -158,41 +150,58 @@ export type AppDispatch = typeof store.dispatch;
 
 ## 🛠️ API
 
-### `createPersistedSlice(sliceOptions)`
+<div class="api-section">
 
+### `createPersistedSlice`
 A wrapper around RTK's `createSlice`.
+
+<h4>Arguments</h4>
 
 * **`sliceOptions`**: The standard `CreateSliceOptions` object.
 
-### `createPersistedReducer(name, initialState, builderCallback)`
+<h4>Returns</h4>
 
+* A standard `Slice` object from Redux Toolkit. You can access its name via `slice.name` or `slice.reducerPath`.
+
+---
+
+### `createPersistedReducer`
 A wrapper around RTK's `createReducer`.
 
+<h4>Arguments</h4>
+
 * **`name`**: A unique string to identify this reducer in storage.
-
 * **`initialState`**: The initial state for the reducer.
-
 * **`builderCallback`**: A callback that receives a `builder` object to define case reducers.
 
-### `configurePersistedStore(storeOptions, applicationId, storageHandler, persistenceOptions?)`
+<h4>Returns</h4>
 
+* A standard `Reducer` function, enhanced with the following property:
+    * **`reducerName`**: A property that holds the provided `name`.
+
+---
+
+### `configurePersistedStore`
 A wrapper around RTK's `configureStore`.
 
+<h4>Arguments</h4>
+
 * **`storeOptions`**: The standard `ConfigureStoreOptions` object.
-
 * **`applicationId`**: A unique string that identifies the application.
-
 * **`storageHandler`**: A storage object that implements `getItem`, `setItem`, and `removeItem`.
-
 * **`persistenceOptions`** (optional): An object to control the persistence behavior:
+    * `rehydrationTimeout` (optional, `number`): Max time in ms to wait for rehydration. Defaults to `5000`.
+    * `onRehydrationStart` (optional, `() => void`): Callback invoked when rehydration begins.
+    * `onRehydrationSuccess` (optional, `() => void`): Callback invoked on successful rehydration.
+    * `onRehydrationError` (optional, `(error: unknown) => void`): Callback invoked on rehydration error.
 
-  * `rehydrationTimeout` (optional, `number`): The maximum time in milliseconds to wait for rehydration to complete before timing out. Defaults to `5000`.
+<h4>Returns</h4>
 
-  * `onRehydrationStart` (optional, `() => void`): A callback invoked when the rehydration process begins.
+* A `PersistedStore` object, which is a standard Redux store enhanced with the following methods:
+    * **`rehydrate()`**: A function to manually trigger rehydration from storage.
+    * **`clearPersistedState()`**: A function that clears all persisted data for the application from storage.
 
-  * `onRehydrationSuccess` (optional, `() => void`): A callback invoked when the rehydration process completes successfully.
-
-  * `onRehydrationError` (optional, `(error: unknown) => void`): A callback invoked if an error occurs during rehydration.
+</div>
 
 <br />
 
