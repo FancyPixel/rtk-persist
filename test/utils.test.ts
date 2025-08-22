@@ -1,3 +1,9 @@
+/**
+ * @file Test suite for the utility functions in `utils.ts`.
+ * This file covers storage operations, key generation, and the deep
+ * object traversal logic used throughout the rtk-persist library.
+ */
+
 import { TestSettings } from '../src/settings';
 import { StorageHandler } from '../src/types';
 import UpdatedAtHelper from '../src/updatedAtHelper';
@@ -11,12 +17,12 @@ import {
 } from '../src/utils';
 import { StorageMock } from './mocks';
 
-// Mock the UpdatedAtHelper to isolate its functionality during tests
+// Mock the UpdatedAtHelper to isolate its functionality during tests.
 jest.mock('../src/updatedAtHelper', () => ({
   onSave: jest.fn(),
 }));
 
-describe('Utils', () => {
+describe('Utilities', () => {
   let storage: StorageHandler;
   const sliceName = 'testSlice';
   const initialState = { value: 10 };
@@ -29,28 +35,28 @@ describe('Utils', () => {
     (UpdatedAtHelper.onSave as jest.Mock).mockClear();
   });
 
-  describe('REHYDRATE action', () => {
-    it('should have the correct action type', () => {
+  describe('REHYDRATE Action', () => {
+    it('should have the correct action type string', () => {
       expect(REHYDRATE.type).toBe('@@INIT-PERSIST');
     });
   });
 
   describe('getStorageName', () => {
-    it('should generate the correct storage key', () => {
+    it('should generate a correctly formatted and namespaced storage key', () => {
       const expectedKey = `persist:testApp-${sliceName}`;
       expect(getStorageName(sliceName)).toBe(expectedKey);
     });
   });
 
   describe('writePersistedStorage', () => {
-    it('should write the state to storage and call onSave', async () => {
+    it('should write the serialized state to storage and call onSave', async () => {
       await writePersistedStorage(initialState, sliceName);
       const storedValue = await storage.getItem(getStorageName(sliceName));
       expect(storedValue).toBe(JSON.stringify(initialState));
       expect(UpdatedAtHelper.onSave).toHaveBeenCalledWith(sliceName);
     });
 
-    it('should handle storage write errors gracefully', async () => {
+    it('should handle storage write errors gracefully without throwing', async () => {
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -68,7 +74,7 @@ describe('Utils', () => {
   });
 
   describe('getStoredState', () => {
-    it('should retrieve and parse the stored state', async () => {
+    it('should retrieve and correctly parse the stored state', async () => {
       await storage.setItem(
         getStorageName(sliceName),
         JSON.stringify(initialState),
@@ -82,7 +88,7 @@ describe('Utils', () => {
       expect(retrievedState).toBeNull();
     });
 
-    it('should handle JSON parsing errors gracefully', async () => {
+    it('should handle JSON parsing errors gracefully and return null', async () => {
       const consoleErrorSpy = jest
         .spyOn(console, 'error')
         .mockImplementation(() => {});
@@ -100,7 +106,7 @@ describe('Utils', () => {
   });
 
   describe('clearPersistedStorage', () => {
-    it('should remove the specified slice from storage', async () => {
+    it('should remove the specified slice data from storage', async () => {
       const storageKey = getStorageName(sliceName);
       await storage.setItem(storageKey, JSON.stringify(initialState));
 
@@ -111,43 +117,76 @@ describe('Utils', () => {
     });
   });
 
-  // Tests for the deepGetByPaths function
-  describe('deepGetByPaths', () => {
+  describe('deepGetByPath', () => {
     const data = {
       foo: {
         foz: [1, 2, 3],
         bar: { baz: ['a', 'b', 'c'] },
       },
       list: [{ item: 'one' }, { item: 'two' }],
+      'with-hyphen': { value: 'hyphenated' },
+      'key with space': { value: 'space value' },
+      matrix: [
+        [1, 2],
+        [3, 4],
+      ],
       nullValue: null,
+      undefinedValue: undefined,
     };
 
-    it('should retrieve deeply nested values using dot and bracket notation', () => {
-      const result = deepGetByPath(data, 'foo.foz[2]');
-      expect(result).toEqual(3);
+    it('should retrieve a deeply nested value using dot notation', () => {
+      expect(deepGetByPath(data, 'foo.bar.baz')).toEqual(['a', 'b', 'c']);
+    });
+
+    it('should retrieve a value from an array using bracket notation', () => {
+      expect(deepGetByPath(data, 'foo.foz[2]')).toBe(3);
+    });
+
+    it('should retrieve a nested value inside an array of objects', () => {
+      expect(deepGetByPath(data, 'list[0].item')).toBe('one');
+    });
+
+    it('should handle nested array access', () => {
+      expect(deepGetByPath(data, 'matrix[1][0]')).toBe(3);
+    });
+
+    it('should handle keys with hyphens if quoted', () => {
+      expect(deepGetByPath(data, '["with-hyphen"].value')).toBe('hyphenated');
+    });
+
+    it('should handle keys with spaces if quoted', () => {
+      expect(deepGetByPath(data, "['key with space'].value")).toBe(
+        'space value',
+      );
     });
 
     it('should return null for paths that do not exist', () => {
-      const result = deepGetByPath(data, 'foo.nonexistent');
-      expect(result).toEqual(null);
+      expect(deepGetByPath(data, 'foo.nonexistent.path')).toBeNull();
     });
 
-    it('should handle a mix of valid and invalid paths', () => {
-      const result = deepGetByPath(
-        data,
-        'list[0].item'
-      );
-      expect(result).toEqual('one');
+    it('should return null for paths that traverse through a null value', () => {
+      expect(deepGetByPath(data, 'nullValue.someProp')).toBeNull();
     });
 
-    it('should return null when attempting to access properties on non-objects', () => {
-      const result = deepGetByPath(data, 'foo.foz[0].length');
-      expect(result).toEqual(null);
+    it('should return null for paths that traverse through an undefined value', () => {
+      expect(deepGetByPath(data, 'undefinedValue.someProp')).toBeNull();
+    });
+
+    it('should return null when attempting to access properties on a primitive', () => {
+      expect(deepGetByPath(data, 'foo.foz[0].length')).toBeNull();
     });
 
     it('should return the original object for an empty path string', () => {
-      const result = deepGetByPath(data, '');
-      expect(result).toEqual(data);
+      expect(deepGetByPath(data, '')).toEqual(data);
+    });
+
+    it('should return top-level values correctly', () => {
+      expect(deepGetByPath(data, 'nullValue')).toBeNull();
+      expect(deepGetByPath(data, 'undefinedValue')).toBeUndefined();
+    });
+
+    it('should handle paths starting with a bracket', () => {
+      expect(deepGetByPath(data.list, '[1].item')).toBe('two');
     });
   });
 });

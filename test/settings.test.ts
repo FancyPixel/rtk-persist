@@ -1,3 +1,11 @@
+/**
+ * @file Test suite for the Settings class.
+ * This file ensures that the global settings for the rtk-persist library
+ * are managed correctly, including the storage handler, application ID,
+ * and slice subscriptions. It also verifies error handling and the behavior
+ * of the TestSettings utility.
+ */
+
 import { configurePersistedStore } from '../src';
 import Settings, { TestSettings } from '../src/settings';
 import { StorageHandler } from '../src/types';
@@ -10,22 +18,23 @@ describe('Settings', () => {
   beforeEach(() => {
     storage = new StorageMock();
     mockSlice = mockPersistedSliceFactory();
+    // Restore settings to a clean state before each test.
     TestSettings.restoreDefaults();
   });
 
-  it('should throw an error when trying to instantiate', () => {
+  it('should throw an error when trying to instantiate the static Settings class', () => {
     expect(() => new Settings()).toThrow(
-      'This class is not meant to be instantiated.',
+      'The Settings class is a static utility and should not be instantiated.',
     );
   });
 
   describe('storageHandler', () => {
-    it('should set and get the storage handler correctly', () => {
+    it('should correctly set and get the storage handler', () => {
       TestSettings.storageHandler = storage;
       expect(TestSettings.storageHandler).toBe(storage);
     });
 
-    it('should be initialized by configurePersistedStore', async () => {
+    it('should be initialized correctly by configurePersistedStore', async () => {
       await configurePersistedStore(
         {
           reducer: { [mockSlice.name]: mockSlice.reducer },
@@ -36,20 +45,20 @@ describe('Settings', () => {
       expect(TestSettings.storageHandler).toBe(storage);
     });
 
-    it('should throw a TypeError if the storage handler is accessed before being set', () => {
+    it('should throw a TypeError if accessed before being set', () => {
       expect(() => TestSettings.storageHandler).toThrow(
-        'The default storage handler must be set.',
+        'A storage handler must be configured before use.',
       );
     });
   });
 
   describe('applicationId', () => {
-    it('should set and get the application ID correctly', () => {
+    it('should correctly set and get the application ID', () => {
       TestSettings.applicationId = 'my-app';
       expect(TestSettings.applicationId).toBe('my-app');
     });
 
-    it('should be initialized by configurePersistedStore', async () => {
+    it('should be initialized correctly by configurePersistedStore', async () => {
       await configurePersistedStore(
         {
           reducer: { [mockSlice.name]: mockSlice.reducer },
@@ -60,15 +69,15 @@ describe('Settings', () => {
       expect(TestSettings.applicationId).toBe('mockApp');
     });
 
-    it('should throw a TypeError if the application ID is accessed before being set', () => {
+    it('should throw a TypeError if accessed before being set', () => {
       expect(() => TestSettings.applicationId).toThrow(
-        'The storage ID must be set.',
+        'An application ID must be configured before use.',
       );
     });
   });
 
-  describe('slice subscription', () => {
-    it('should subscribe slices and return the list of subscribed slice IDs', () => {
+  describe('Slice Subscription', () => {
+    it('should subscribe slices and return the list of subscribed IDs', () => {
       TestSettings.subscribeSlice('user');
       TestSettings.subscribeSlice('posts');
       expect(TestSettings.subscribedSliceIds).toEqual(['user', 'posts']);
@@ -76,7 +85,7 @@ describe('Settings', () => {
 
     it('should not allow duplicate slice subscriptions', () => {
       TestSettings.subscribeSlice('user');
-      TestSettings.subscribeSlice('user');
+      TestSettings.subscribeSlice('user'); // Duplicate
       TestSettings.subscribeSlice('posts');
       expect(TestSettings.subscribedSliceIds).toEqual(['user', 'posts']);
     });
@@ -84,16 +93,28 @@ describe('Settings', () => {
     it('should return an empty array when no slices are subscribed', () => {
       expect(TestSettings.subscribedSliceIds).toEqual([]);
     });
+
+    it('should return a copy of the subscribedSliceIds array to ensure immutability', () => {
+      TestSettings.subscribeSlice('user');
+      const ids = TestSettings.subscribedSliceIds;
+      ids.push('posts'); // Mutate the returned array
+
+      // The original settings should remain unchanged.
+      expect(TestSettings.subscribedSliceIds).toEqual(['user']);
+    });
   });
 
-  describe('TestSettings', () => {
-    it('should restore all settings to their default state', () => {
+  describe('TestSettings Utility', () => {
+    it('should restore all settings to their default, uninitialized state', () => {
+      // Setup: Assign values to all settings.
       TestSettings.storageHandler = storage;
       TestSettings.applicationId = 'my-app';
       TestSettings.subscribeSlice('user');
 
+      // Action: Restore defaults.
       TestSettings.restoreDefaults();
 
+      // Assert: All settings should be reset and throw if accessed.
       expect(() => TestSettings.storageHandler).toThrow();
       expect(() => TestSettings.applicationId).toThrow();
       expect(TestSettings.subscribedSliceIds).toEqual([]);

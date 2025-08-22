@@ -12,44 +12,46 @@ import {
   StoreEnhancer,
   ThunkMiddleware,
   Tuple,
-  UnknownAction
-} from "@reduxjs/toolkit";
+  UnknownAction,
+} from '@reduxjs/toolkit';
 
 /**
- * Defines the interface for a storage handler used to persist data.
- * This allows for a flexible storage mechanism, whether it's `localStorage`
- * in the browser or `AsyncStorage` in React Native.
+ * Defines the interface for a storage handler, allowing `rtk-persist` to
+ * work with different storage mechanisms like web `localStorage` or React
+ * Native's `AsyncStorage`.
  *
- * @interface StorageHandler
- * @public
  * @example
- * // For web
- * const storage = localStorage;
+ * // For web environments:
+ * const storage: StorageHandler = localStorage;
  *
- * // For React Native
+ * // For React Native:
  * import AsyncStorage from '@react-native-async-storage/async-storage';
- * const storage = AsyncStorage;
+ * const storage: StorageHandler = AsyncStorage;
+ * @public
  */
 export interface StorageHandler {
-  /** Saves a string value to storage for a given key. */
+  /** Saves a key-value pair to the storage. */
   setItem: (key: string, value: string) => Promise<void> | void;
-  /** Retrieves a string value from storage for a given key. */
-  getItem: (key: string) => Promise<string | null> | (string | null);
-  /** Removes a value from storage for a given key. */
+  /** Retrieves a value from storage by its key. */
+  getItem: (key: string) => Promise<string | null> | string | null;
+  /** Removes a key-value pair from storage. */
   removeItem: (key: string) => Promise<void> | void;
 }
 
 /**
  * Defines the shape of the payload for the internal `REHYDRATE` action.
- * It's a record where keys are slice names and values are their persisted state.
+ * It's a record where keys are slice names and values are their persisted states.
  * @internal
  */
-export type RehydrateActionPayload<Name extends string = string, State = unknown> = Record<Name, State> | null;
+export type RehydrateActionPayload<
+  Name extends string = string,
+  State = unknown,
+> = Record<Name, State> | null;
 
 // --- Internal RTK Types ---
-// These types are re-exported or re-defined from Redux Toolkit's internal
-// types to ensure proper type inference in `configurePersistedStore`.
-// They are not intended for direct use by end-users.
+// These types are re-exported or re-defined from Redux Toolkit to ensure
+// proper type inference in `configurePersistedStore`. They are not intended
+// for direct use.
 
 /** @internal */
 export type Enhancers = ReadonlyArray<StoreEnhancer>;
@@ -57,64 +59,87 @@ export type Enhancers = ReadonlyArray<StoreEnhancer>;
 export type Middlewares<S> = ReadonlyArray<Middleware<{}, S>>;
 /** @internal */
 export interface ThunkOptions<E = any> {
-    extraArgument: E;
+  extraArgument: E;
 }
 /** @internal */
 export interface GetDefaultMiddlewareOptions {
-    thunk?: boolean | ThunkOptions;
-    immutableCheck?: boolean | ImmutableStateInvariantMiddlewareOptions;
-    serializableCheck?: boolean | SerializableStateInvariantMiddlewareOptions;
-    actionCreatorCheck?: boolean | ActionCreatorInvariantMiddlewareOptions;
+  thunk?: boolean | ThunkOptions;
+  immutableCheck?: boolean | ImmutableStateInvariantMiddlewareOptions;
+  serializableCheck?: boolean | SerializableStateInvariantMiddlewareOptions;
+  actionCreatorCheck?: boolean | ActionCreatorInvariantMiddlewareOptions;
 }
 /** @internal */
-export type ThunkMiddlewareFor<S, O extends GetDefaultMiddlewareOptions = {}> = O extends {
-    thunk: false;
-} ? never : O extends {
-    thunk: {
+export type ThunkMiddlewareFor<
+  S,
+  O extends GetDefaultMiddlewareOptions = {},
+> = O extends {
+  thunk: false;
+}
+  ? never
+  : O extends {
+      thunk: {
         extraArgument: infer E;
-    };
-} ? ThunkMiddleware<S, UnknownAction, E> : ThunkMiddleware<S, UnknownAction>;
+      };
+    }
+  ? ThunkMiddleware<S, UnknownAction, E>
+  : ThunkMiddleware<S, UnknownAction>;
 /** @internal */
-export type IsAny<T, True, False = never> = true | false extends (T extends never ? true : false) ? True : False;
+export type IsAny<T, True, False = never> = true | false extends (
+  T extends never ? true : false
+)
+  ? True
+  : False;
 /** @internal */
-export type ExtractDispatchFromMiddlewareTuple<MiddlewareTuple extends readonly any[], Acc extends {}> = MiddlewareTuple extends [infer Head, ...infer Tail] ? ExtractDispatchFromMiddlewareTuple<Tail, Acc & (Head extends Middleware<infer D> ? IsAny<D, {}, D> : {})> : Acc;
+export type ExtractDispatchFromMiddlewareTuple<
+  MiddlewareTuple extends readonly any[],
+  Acc extends {},
+> = MiddlewareTuple extends [infer Head, ...infer Tail]
+  ? ExtractDispatchFromMiddlewareTuple<
+      Tail,
+      Acc & (Head extends Middleware<infer D> ? IsAny<D, {}, D> : {})
+    >
+  : Acc;
 /** @internal */
-export type ExtractDispatchExtensions<M> = M extends Tuple<infer MiddlewareTuple> ? ExtractDispatchFromMiddlewareTuple<MiddlewareTuple, {}> : M extends ReadonlyArray<Middleware> ? ExtractDispatchFromMiddlewareTuple<[...M], {}> : never;
+export type ExtractDispatchExtensions<M> = M extends Tuple<infer MiddlewareTuple>
+  ? ExtractDispatchFromMiddlewareTuple<MiddlewareTuple, {}>
+  : M extends ReadonlyArray<Middleware>
+  ? ExtractDispatchFromMiddlewareTuple<[...M], {}>
+  : never;
 
 /**
- * A utility type that ensures a value is not a function. This is used to
- * constrain state types to be serializable plain objects.
+ * A utility type to ensure a value is not a function, used to constrain
+ * state types to be serializable.
  * @internal
  */
 export type NotFunction<T> = T extends Function ? never : T;
 
 /**
- * A utility type that creates a valid nesting path for a persisted slice or reducer.
- * The path must be either an empty string (for a root-level slice/reducer) or a
- * dot-notation string that ends with the provided `Path`.
+ * A utility type that defines a valid nesting path for a persisted slice or reducer.
+ * The path must be a dot-notation string that ends with the slice/reducer's name.
+ * An empty string is also valid for root-level items.
  *
- * @template Path - The name or path of the reducer, which must be the last segment of the nesting path.
+ * @template Path - The name or path of the reducer, which must be the final segment.
  */
 export type NestedPath<Path extends string> = '' | Path | `${string}.${Path}`;
 
 /**
- * A utility type that enhances a Redux reducer with properties needed for persistence.
- * It adds `reducerName` and the calculated `nestedPath` to the standard reducer type.
+ * An enhanced Redux reducer that includes properties for persistence management.
  * @public
  */
 export type PersistedReducer<
   S extends NotFunction<any>,
   ReducerName extends string,
-  Nesting extends NestedPath<ReducerName> = ReducerName
+  Nesting extends NestedPath<ReducerName> = ReducerName,
 > = Reducer<S> & {
+  /** The unique name of the reducer, used as the storage key. */
   reducerName: ReducerName;
+  /** The full dot-separated path to the reducer's state in the root state object. */
   nestedPath: Nesting;
 };
 
 /**
- * A utility type that enhances a Redux slice with the `nestedPath` property,
- * which represents its full path within the root state.
- *
+ * An enhanced Redux slice that includes the `nestedPath` property for
+ * tracking its location within the root state.
  * @public
  */
 export type PersistedSlice<
@@ -122,28 +147,31 @@ export type PersistedSlice<
   PCR extends SliceCaseReducers<SliceState>,
   Name extends string,
   ReducerPath extends string,
-  PeristedSelectors extends SliceSelectors<SliceState>,
-  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath
-> = Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors> & {
+  PersistedSelectors extends SliceSelectors<SliceState>,
+  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath,
+> = Slice<SliceState, PCR, Name, ReducerPath, PersistedSelectors> & {
+  /** The full dot-separated path to the slice's state in the root state object. */
   nestedPath: Nesting;
 };
 
 /**
- * The enhanced store type returned by `configurePersistedStore`.
- * It includes the standard Redux store properties and methods, plus
- * additional methods for managing persistence.
+ * The enhanced store object returned by `configurePersistedStore`.
+ * It includes the standard Redux store methods, plus additional methods
+ * for controlling the persistence lifecycle.
  * @public
  */
 export type PersistedStore<
   S extends Record<string, unknown> = any,
   A extends Action = UnknownAction,
   M extends Tuple<Middlewares<S>> = Tuple<[ThunkMiddlewareFor<S>]>,
-  E extends Tuple<Enhancers> = Tuple<[
-    StoreEnhancer<{
-      dispatch: ExtractDispatchExtensions<M>;
-    }>,
-    StoreEnhancer
-  ]>
+  E extends Tuple<Enhancers> = Tuple<
+    [
+      StoreEnhancer<{
+        dispatch: ExtractDispatchExtensions<M>;
+      }>,
+      StoreEnhancer,
+    ]
+  >,
 > = EnhancedStore<S, A, E> & {
   /**
    * Manually triggers the rehydration of the store's state from storage.
@@ -155,20 +183,19 @@ export type PersistedStore<
    * @returns A promise that resolves when the state has been cleared.
    */
   clearPersistedState: () => Promise<void>;
-}
+};
 
 /**
- * Defines the configuration options for the persistence behavior.
- * @interface PersistenceOptions
+ * Defines configuration options for the persistence and rehydration process.
  * @public
  */
 export interface PersistenceOptions {
-  /** The maximum time in milliseconds to wait for rehydration to complete before timing out. Defaults to 5000. */
+  /** The maximum time in milliseconds to wait for rehydration before timing out. Defaults to 5000. */
   rehydrationTimeout?: number;
-  /** A callback invoked when the rehydration process begins. */
+  /** An optional callback invoked when the rehydration process begins. */
   onRehydrationStart?: () => void;
-  /** A callback invoked when the rehydration process completes successfully. */
+  /** An optional callback invoked when rehydration completes successfully. */
   onRehydrationSuccess?: () => void;
-  /** A callback invoked if an error occurs during rehydration. */
+  /** An optional callback invoked if an error occurs during rehydration. */
   onRehydrationError?: (error: unknown) => void;
 }

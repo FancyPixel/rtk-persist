@@ -1,64 +1,72 @@
-import { createAction } from "@reduxjs/toolkit";
-import Settings from "./settings";
-import { RehydrateActionPayload } from "./types";
-import UpdatedAtHelper from "./updatedAtHelper";
+/**
+ * @file This file contains core utility functions for the rtk-persist library,
+ * including storage interaction, state traversal, and type helpers.
+ */
+
+import { createAction } from '@reduxjs/toolkit';
+import Settings from './settings';
+import { RehydrateActionPayload } from './types';
+import UpdatedAtHelper from './updatedAtHelper';
 
 /**
- * Action dispatched to rehydrate the store with persisted state.
+ * An action dispatched to rehydrate the store with state from storage.
+ * This action is typically dispatched once on application startup.
  * @internal
  */
 export const REHYDRATE = createAction<RehydrateActionPayload>('@@INIT-PERSIST');
 
 /**
- * Generates the unique storage key for a given slice name.
+ * Generates a unique, namespaced storage key for a given slice.
  * @param name - The name of the slice.
- * @returns The formatted storage key.
+ * @returns The formatted storage key (e.g., `persist:myApp-mySlice`).
  * @internal
  */
-export const getStorageName = (name: string) => `persist:${Settings.applicationId}-${name}`;
+export const getStorageName = (name: string) =>
+  `persist:${Settings.applicationId}-${name}`;
 
 /**
- * Writes the updated state to the selected storage.
+ * Serializes and writes the state of a slice to the configured storage.
  *
  * @param state - The state to be persisted.
- * @param name - The name of the state slice.
- *
+ * @param name - The name of the slice.
  * @internal
  */
-export async function writePersistedStorage<Name extends string, SliceState>(state: SliceState, name: Name) {
+export async function writePersistedStorage<Name extends string, SliceState>(
+  state: SliceState,
+  name: Name,
+) {
   const storageName = getStorageName(name);
   try {
-    await Settings.storageHandler.setItem(
-      storageName,
-      JSON.stringify(state),
-    );
+    await Settings.storageHandler.setItem(storageName, JSON.stringify(state));
     UpdatedAtHelper.onSave(name);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      console.error("rtk-persist: Failed to save state.", error);
+      console.error('rtk-persist: Failed to save state.', error);
     }
   }
 }
 
 /**
- * Retrieves the stored state of a slice if it exists.
+ * Retrieves and deserializes the state of a slice from storage.
  *
  * @param name - The name of the slice to retrieve.
- * @returns A promise that resolves to the stored state of the slice, or null if not found.
- *
+ * @returns A promise that resolves to the stored state, or null if not found or if parsing fails.
  * @internal
  */
-export async function getStoredState<T>(name: string): Promise<Partial<T> | null> {
+export async function getStoredState<T>(
+  name: string,
+): Promise<Partial<T> | null> {
   try {
-    const storageJson = (await Settings.storageHandler.getItem(getStorageName(name)));
+    const storageJson = await Settings.storageHandler.getItem(
+      getStorageName(name),
+    );
     if (!storageJson) return null;
     return JSON.parse(storageJson);
   } catch (error) {
     if (process.env.NODE_ENV !== 'production') {
-      // Log an error if the store fails to load
       console.error(
         'rtk-persist: Failed to load or parse stored state.',
-        error
+        error,
       );
     }
   }
@@ -66,10 +74,9 @@ export async function getStoredState<T>(name: string): Promise<Partial<T> | null
 }
 
 /**
- * Clears the stored data for a specific slice from the selected storage.
+ * Removes the stored data for a specific slice from storage.
  *
- * @param name - The unique name for the state slice.
- *
+ * @param name - The name of the slice to clear.
  * @internal
  */
 export async function clearPersistedStorage(name: string) {
@@ -79,71 +86,89 @@ export async function clearPersistedStorage(name: string) {
 
 /**
  * Safely retrieves a nested value from an object using an array of keys.
- * It traverses the object according to the sequence of keys provided.
  *
- * @param obj The object to query. Can be of any type, but functions correctly with nested objects and arrays.
- * @param keys An array of strings or numbers representing the path to the desired value.
- * @returns The nested value if found, otherwise null if the path is invalid or the value is null/undefined.
+ * @param obj - The object to query.
+ * @param keys - An array of keys representing the path to the desired value.
+ * @returns The nested value if found. Returns `null` for invalid paths partway
+ * through, and `undefined` if the final key doesn't exist.
+ * @internal
  */
-export const deepGet = <Name extends string = string>(obj: any, keys: (Name)[]): any => {
-  return keys.reduce((xs, x) => (xs?.[x] !== undefined && xs?.[x] !== null) ? xs[x] : null, obj);
+export const deepGet = <Name extends string = string>(
+  obj: any,
+  keys: Name[],
+): any => {
+  let current = obj;
+  for (const key of keys) {
+    // If at any point the path leads to a non-object (and is not the end of the path),
+    // we cannot go deeper, so the path is considered invalid.
+    if (typeof current !== 'object' || current === null) {
+      return null;
+    }
+    current = current[key];
+  }
+  // The final value can legitimately be undefined, so we return it.
+  return current;
 };
 
 /**
- * Retrieves multiple nested values from an object based on string paths.
- * It supports both dot notation (e.g., 'prop1.prop2') and bracket notation for array access (e.g., 'prop1[0]').
+ * Retrieves a nested value from an object using a dot-separated path string.
+ * Supports both dot notation (`'prop1.prop2'`) and bracket notation for arrays
+ * (`'prop1[0]'` or `prop1['key-with-hyphens']`).
  *
- * @param obj The object to query.
- * @param paths A rest parameter of string paths to retrieve values for.
- * @returns An array containing the retrieved values. If a path is not found, the corresponding value in the array will be null.
+ * @param obj - The object to query.
+ * @param path - A string path to the desired value.
+ * @returns The nested value if found. Returns `null` for invalid paths partway
+ * through, and `undefined` if the final key doesn't exist. Returns the original
+ * object for an empty path.
+ * @internal
  */
 export const deepGetByPath = (obj: any, path: string): any => {
   if (path === '') return obj;
 
-  // Convert bracket notation to dot notation, then split into an array of keys.
+  // Convert bracket notation to dot notation, then split into keys.
   const keys = path
-    .replace(/\[([^\[\]]*)\]/g, '.$1.')
+    .replace(/\[([^\[\]]*)\]/g, '.$1.') // Convert bracket notation
     .split('.')
-    .filter(t => t !== ''); // Filter out empty strings that may arise from the regex replacement.
+    .filter(Boolean) // Remove empty strings from the path array
+    .map((key) => key.replace(/["']/g, '')); // Strip quotes from keys
 
   return deepGet(obj, keys);
 };
 
 /**
- * A helper type to identify primitive values that the recursive
- * path generation should not traverse into.
+ * A helper type to identify primitive values.
+ * @internal
  */
 type Primitive = string | number | boolean | null | undefined;
 
 /**
- * Creates a union of all possible dot-notation paths for a given object type T.
- * This is useful for creating strongly-typed functions that access nested
- * properties of an object like a Redux state. An empty string is also considered a valid path.
+ * A utility type that generates a union of all possible dot-notation paths for a given object type `T`.
+ * This is used to provide strong typing for nested state access.
  *
  * @example
  * type MyState = { user: { name: string }, posts: { id: number }[] }
  * type MyStatePaths = Paths<MyState>
- * // "" | "user" | "user.name" | "posts" | `posts.${number}` | `posts.${number}.id`
+ * // Result: "" | "user" | "user.name" | "posts" | `posts.${number}` | `posts.${number}.id`
+ * @internal
  */
-export type Paths<T> = "" | (T extends Primitive
-  ? never // Base case: Don't generate paths for primitive types.
+export type Paths<T> = '' | (T extends Primitive
+  ? never
   : T extends (infer U)[]
-  ? `${number}` | `${number}.${Paths<U>}` // Handle array paths with numeric indices.
+  ? `${number}` | `${number}.${Paths<U>}`
   : {
-      // For each key in the object...
       [K in keyof T & string]: T[K] extends Primitive
-        ? K // If the property is primitive, the path is just the key.
-        : K | `${K}.${Paths<T[K]>}`; // Otherwise, recurse into the nested object.
-    }[keyof T & string]); // Create a union of all the generated path strings.
+        ? K
+        : K | `${K}.${Paths<T[K]>}`;
+    }[keyof T & string]);
 
 /**
- * A strongly-typed path validation function for a given state object type.
- * This function doesn't do anything at runtime; its purpose is to provide
- * compile-time feedback (linter errors) for invalid paths.
+ * A type-only validation function for nested paths. It provides compile-time
+ * errors for invalid paths without any runtime overhead.
  *
- * @param path A path that must be a valid key path within the generic type T.
+ * @param _path - A path that must be a valid key path within the generic type `T`.
+ * @internal
  */
 export const validateNestedPath = <T extends object>(_path: Paths<T>): void => {
-  // This function is intentionally empty. Its sole purpose is to enforce
-  // type-checking on the 'path' argument at compile time.
+  // This function is intentionally empty. Its purpose is to enforce
+  // type-checking on the '_path' argument at compile time.
 };

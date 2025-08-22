@@ -1,3 +1,10 @@
+/**
+ * @file Test suite for the `createPersistedReducer` function.
+ * This file covers the core functionality, rehydration logic, advanced
+ * builder cases like matchers and default cases, and the handling of
+ * the `nestedPath` property.
+ */
+
 import { createAction, PayloadAction } from '@reduxjs/toolkit';
 import { createPersistedReducer } from '../src/reducer';
 import { RehydrateActionPayload } from '../src/types';
@@ -11,103 +18,156 @@ describe('createPersistedReducer', () => {
 
   // A mock callback that defines the reducer's logic.
   const mapOrBuilderCallback = jest.fn((builder: any) => {
-    builder.addCase(increment, (state: typeof initialState, action: PayloadAction<number>) => {
-      state.value += action.payload;
-    });
+    builder.addCase(
+      increment,
+      (state: typeof initialState, action: PayloadAction<number>) => {
+        state.value += action.payload;
+      },
+    );
   });
 
-  // Before each test, we clear the mock callback.
   beforeEach(() => {
     mapOrBuilderCallback.mockClear();
   });
 
-  // --- Core Reducer Tests ---
+  // --- Core Reducer Functionality ---
 
-  it('should create a reducer that correctly handles actions defined in the builder callback', () => {
-    const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
-    const state = { value: 10 };
+  describe('Core Functionality', () => {
+    it('should create a reducer that handles actions correctly', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      const state = { value: 10 };
 
-    // Dispatch an action and check if the state is updated as expected.
-    const newState = reducer(state, increment(5));
+      const newState = reducer(state, increment(5));
 
-    expect(newState.value).toBe(15);
-    expect(mapOrBuilderCallback).toHaveBeenCalledTimes(1);
+      expect(newState.value).toBe(15);
+      expect(mapOrBuilderCallback).toHaveBeenCalledTimes(1);
+    });
+
+    it('should return the initial state for undefined states', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      const newState = reducer(undefined, { type: 'unknown' });
+
+      expect(newState).toEqual(initialState);
+    });
+
+    it('should attach the correct reducerName property', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      expect(reducer.reducerName).toBe(reducerName);
+    });
   });
 
-  it('should return the initial state when the state is undefined', () => {
-    const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
+  // --- Nested Path Assignment ---
 
-    // Call the reducer with an undefined state.
-    const newState = reducer(undefined, { type: 'unknown' });
+  describe('Nested Path Assignment', () => {
+    it('should use the provided nestedPath when specified', () => {
+      const nestedPath = 'nested.test';
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+        nestedPath,
+      );
+      expect(reducer.nestedPath).toBe(nestedPath);
+    });
 
-    expect(newState).toEqual(initialState);
+    it('should default nestedPath to the reducerName when not provided', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      expect(reducer.nestedPath).toBe(reducerName);
+    });
   });
 
-  it('should have the correct reducerName property attached', () => {
-    const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
-    expect(reducer.reducerName).toBe(reducerName);
-  });
+  // --- Rehydration Logic ---
 
-  // --- Rehydration Tests ---
-
-  describe('Rehydration', () => {
+  describe('Rehydration Logic', () => {
     it('should handle the REHYDRATE action and replace the state', () => {
-      const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
       const rehydratedState = { value: 100 };
-      const action: PayloadAction<RehydrateActionPayload<typeof reducerName, typeof initialState>> = {
+      const action: PayloadAction<
+        RehydrateActionPayload<typeof reducerName, typeof initialState>
+      > = {
         type: REHYDRATE.toString(),
         payload: { [reducerName]: rehydratedState },
       };
 
-      // Dispatch the rehydration action.
       const newState = reducer(initialState, action);
 
       expect(newState).toEqual(rehydratedState);
     });
 
-    it('should not change state if the rehydration payload does not contain the reducer key', () => {
-      const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
-      const action: PayloadAction<RehydrateActionPayload<'anotherReducer', typeof initialState>> = {
+    it('should not change state if the rehydration payload is for a different reducer', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      const action: PayloadAction<
+        RehydrateActionPayload<'anotherReducer', typeof initialState>
+      > = {
         type: REHYDRATE.toString(),
         payload: { anotherReducer: { value: 100 } },
       };
 
-      // Dispatch rehydration action for a different reducer.
       const newState = reducer(initialState, action);
 
       expect(newState).toEqual(initialState);
     });
 
     it('should not change state if the rehydration payload is null', () => {
-      const reducer = createPersistedReducer(reducerName, initialState, mapOrBuilderCallback);
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
       const action: PayloadAction<null> = {
         type: REHYDRATE.toString(),
         payload: null,
       };
 
-      // Dispatch rehydration action with a null payload.
       const newState = reducer(initialState, action);
 
       expect(newState).toEqual(initialState);
     });
   });
 
-  // --- Additional Builder Cases ---
+  // --- Advanced Builder Cases ---
 
-  describe('Additional Builder Cases', () => {
+  describe('Advanced Builder Cases', () => {
     it('should handle addMatcher correctly', () => {
       const specialAction = createAction<string>('special/action');
       const matcherCallback = jest.fn((builder: any) => {
         builder.addMatcher(
           (action: any) => action.type.endsWith('/action'),
           (state: typeof initialState, action: PayloadAction<string>) => {
-            // Set value to the length of the payload string
             state.value = action.payload.length;
-          }
+          },
         );
       });
 
-      const reducer = createPersistedReducer(reducerName, initialState, matcherCallback);
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        matcherCallback,
+      );
       const newState = reducer({ value: 0 }, specialAction('test-string'));
 
       expect(newState.value).toBe(11);
@@ -117,21 +177,74 @@ describe('createPersistedReducer', () => {
     it('should handle addDefaultCase for unhandled actions', () => {
       const unhandledAction = { type: 'unhandled/action' };
       const defaultCaseCallback = jest.fn((builder: any) => {
-        // This case will not match the unhandledAction
         builder.addCase('some/other/case', (state: typeof initialState) => {
           state.value = 999;
         });
-        // The default case should be executed
         builder.addDefaultCase((state: typeof initialState) => {
           state.value = -1;
         });
       });
 
-      const reducer = createPersistedReducer(reducerName, initialState, defaultCaseCallback);
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        defaultCaseCallback,
+      );
       const newState = reducer({ value: 10 }, unhandledAction);
 
       expect(newState.value).toBe(-1);
       expect(defaultCaseCallback).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // --- Edge Cases ---
+
+  describe('Edge Cases', () => {
+    it('should use a lazy initializer for the initial state', () => {
+      const lazyInitialState = jest.fn(() => ({ value: 5 }));
+      const reducer = createPersistedReducer(
+        reducerName,
+        lazyInitialState,
+        () => {},
+      );
+      const newState = reducer(undefined, { type: 'unknown' });
+      expect(lazyInitialState).toHaveBeenCalledTimes(1);
+      expect(newState).toEqual({ value: 5 });
+    });
+
+    it('should accept a rehydrated state with a different shape', () => {
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        mapOrBuilderCallback,
+      );
+      const rehydratedState = { value: 100, extra: 'field' }; // New field
+      const action = {
+        type: REHYDRATE.toString(),
+        payload: { [reducerName]: rehydratedState },
+      };
+      const newState = reducer(initialState, action);
+      expect(newState).toEqual(rehydratedState);
+    });
+
+    it('should handle case reducers that return a new state object', () => {
+      const returnerCallback = jest.fn((builder: any) => {
+        builder.addCase(
+          increment,
+          (state: typeof initialState, action: PayloadAction<number>) => {
+            return { value: state.value + action.payload };
+          },
+        );
+      });
+      const reducer = createPersistedReducer(
+        reducerName,
+        initialState,
+        returnerCallback,
+      );
+      const state = { value: 20 };
+      const newState = reducer(state, increment(10));
+      expect(newState.value).toBe(30);
+      expect(newState).not.toBe(state);
     });
   });
 });

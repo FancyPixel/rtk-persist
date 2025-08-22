@@ -1,25 +1,40 @@
-import { Action, configureStore, ConfigureStoreOptions, createDynamicMiddleware, createListenerMiddleware, StoreEnhancer, Tuple, UnknownAction } from "@reduxjs/toolkit";
-import { listenerMiddleware } from "./middleware";
-import Settings from "./settings";
-import { Enhancers, ExtractDispatchExtensions, Middlewares, PersistedStore, PersistenceOptions, StorageHandler, ThunkMiddlewareFor } from "./types";
-import { clearPersistedStorage, getStoredState, REHYDRATE } from "./utils";
+import {
+  Action,
+  configureStore,
+  ConfigureStoreOptions,
+  createDynamicMiddleware,
+  createListenerMiddleware,
+  StoreEnhancer,
+  Tuple,
+  UnknownAction,
+} from '@reduxjs/toolkit';
+import { listenerMiddleware } from './middleware';
+import Settings from './settings';
+import {
+  Enhancers,
+  ExtractDispatchExtensions,
+  Middlewares,
+  PersistedStore,
+  PersistenceOptions,
+  StorageHandler,
+  ThunkMiddlewareFor,
+} from './types';
+import { clearPersistedStorage, getStoredState, REHYDRATE } from './utils';
 
 /**
- * Encapsulates the standard RTK `configureStore()` function to add state persistence.
+ * A wrapper around Redux Toolkit's `configureStore` that enhances it with
+ * automatic state persistence. It sets up the necessary middleware and handles
+ * the initial asynchronous rehydration of state from storage.
  *
- * This function creates a Redux store that automatically saves and reloads specified
- * slices of the state from a given storage medium. The initial rehydration is
- * handled asynchronously after the store is returned.
- *
- * @param options - The standard RTK `ConfigureStoreOptions`.
- * @param applicationId - A unique ID for the application to namespace the storage keys.
- * @param storageHandler - The storage handler (e.g., `localStorage`) to use for persistence.
+ * @param options - The standard `ConfigureStoreOptions` from Redux Toolkit.
+ * @param applicationId - A unique ID for the application, used to namespace storage keys and prevent conflicts.
+ * @param storageHandler - The storage engine to use (e.g., `localStorage`, `sessionStorage`).
  * @param persistenceOptions - Optional configuration for persistence behavior.
- * @param persistenceOptions.rehydrationTimeout - The maximum time in milliseconds to wait for rehydration to complete before timing out. Defaults to 5000.
- * @param persistenceOptions.onRehydrationStart - A callback invoked when the rehydration process begins.
- * @param persistenceOptions.onRehydrationSuccess - A callback invoked when the rehydration process completes successfully.
- * @param persistenceOptions.onRehydrationError - A callback invoked if an error occurs during rehydration.
- * @returns A configured Redux store, enhanced with `rehydrate` and `clearPersistedState` methods.
+ * @param persistenceOptions.rehydrationTimeout - Max time in ms to wait for rehydration. Defaults to 5000.
+ * @param persistenceOptions.onRehydrationStart - Callback invoked when rehydration begins.
+ * @param persistenceOptions.onRehydrationSuccess - Callback invoked on successful rehydration.
+ * @param persistenceOptions.onRehydrationError - Callback invoked if rehydration fails.
+ * @returns A configured Redux store, augmented with `rehydrate` and `clearPersistedState` methods.
  *
  * {@link @reduxjs/toolkit#configureStore}
  *
@@ -29,118 +44,149 @@ export const configurePersistedStore: <
   S extends Record<string, unknown> = any,
   A extends Action = UnknownAction,
   M extends Tuple<Middlewares<S>> = Tuple<[ThunkMiddlewareFor<S>]>,
-  E extends Tuple<Enhancers> = Tuple<[
-    StoreEnhancer<{
-      dispatch: ExtractDispatchExtensions<M>;
-    }>,
-    StoreEnhancer
-  ]>,
-  P extends Record<string, unknown> = S
+  E extends Tuple<Enhancers> = Tuple<
+    [
+      StoreEnhancer<{
+        dispatch: ExtractDispatchExtensions<M>;
+      }>,
+      StoreEnhancer,
+    ]
+  >,
+  P extends Record<string, unknown> = S,
 >(
   options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>,
   applicationId: string,
   storageHandler: StorageHandler,
-  persistenceOptions?: PersistenceOptions
+  persistenceOptions?: PersistenceOptions,
 ) => PersistedStore<S, A, M, E> = <
   S extends Record<string, unknown> = any,
   A extends Action = UnknownAction,
   M extends Tuple<Middlewares<S>> = Tuple<[ThunkMiddlewareFor<S>]>,
-  E extends Tuple<Enhancers> = Tuple<[
-    StoreEnhancer<{
-      dispatch: ExtractDispatchExtensions<M>;
-    }>,
-    StoreEnhancer
-  ]>,
-  P extends Record<string, unknown> = S
+  E extends Tuple<Enhancers> = Tuple<
+    [
+      StoreEnhancer<{
+        dispatch: ExtractDispatchExtensions<M>;
+      }>,
+      StoreEnhancer,
+    ]
+  >,
+  P extends Record<string, unknown> = S,
 >(
   options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>,
   applicationId: string,
   storageHandler: StorageHandler,
   persistenceOptions: PersistenceOptions = {
-    rehydrationTimeout: 5000
-  }
+    rehydrationTimeout: 5000,
+  },
 ) => {
-  // Set the global storage handler and application ID for the persistence logic.
+  // Configure global settings for the persistence logic.
   Settings.storageHandler = storageHandler;
   Settings.applicationId = applicationId;
 
   const dynamicMiddleware = createDynamicMiddleware();
 
-  // Create the store, adding the dynamic middleware for rehydration and the main listener for persistence.
+  // Create the store, injecting the dynamic and persistence listener middleware.
   const persistedStore = configureStore({
     ...options,
     middleware: (getDefaultMiddleware) => {
-      const m: Tuple<Middlewares<S>> = options.middleware?.(getDefaultMiddleware) || getDefaultMiddleware();
-      return m.concat(dynamicMiddleware.middleware).concat(listenerMiddleware.middleware);
+      const m: Tuple<Middlewares<S>> =
+        options.middleware?.(getDefaultMiddleware) || getDefaultMiddleware();
+      return m
+        .concat(dynamicMiddleware.middleware)
+        .concat(listenerMiddleware.middleware);
     },
   });
 
   /**
-   * Manually triggers the rehydration of the store from storage. This is useful for
-   * reloading persisted state at a time other than the initial startup.
-   * @returns A promise that resolves when rehydration is complete or rejects on timeout or error.
+   * Manually triggers the rehydration of the store from storage. This can be
+   * useful for reloading persisted state on demand, outside of the initial
+   * application load.
+   * @returns A promise that resolves upon successful rehydration or rejects on
+   * timeout or error.
    * @public
    */
-  const rehydrate = () => new Promise<void>(async (resolve, reject) => {
-    persistenceOptions?.onRehydrationStart?.();
+  const rehydrate = () =>
+    new Promise<void>(async (resolve, reject) => {
+      persistenceOptions?.onRehydrationStart?.();
 
-    const signalTimeout = setTimeout(() => {
-      const timeoutError = new Error(`Rehydration timed out after ${persistenceOptions?.rehydrationTimeout}ms`);
-      persistenceOptions?.onRehydrationError?.(timeoutError);
-      reject(timeoutError);
-    }, persistenceOptions?.rehydrationTimeout);
-    const m = createListenerMiddleware();
-    m.startListening({
-      actionCreator: REHYDRATE,
-      effect: (_, l) => {
-        clearTimeout(signalTimeout);
-        l.unsubscribe();
-        persistenceOptions?.onRehydrationSuccess?.();
-        resolve();
-      },
-    });
-    dynamicMiddleware.addMiddleware(m.middleware);
+      const signalTimeout = setTimeout(() => {
+        const timeoutError = new Error(
+          `Rehydration timed out after ${persistenceOptions?.rehydrationTimeout}ms`,
+        );
+        persistenceOptions?.onRehydrationError?.(timeoutError);
+        reject(timeoutError);
+      }, persistenceOptions?.rehydrationTimeout);
 
-    try {
+      const m = createListenerMiddleware();
+      m.startListening({
+        actionCreator: REHYDRATE,
+        effect: (_, l) => {
+          clearTimeout(signalTimeout);
+          l.unsubscribe();
+          persistenceOptions?.onRehydrationSuccess?.();
+          resolve();
+        },
+      });
+      dynamicMiddleware.addMiddleware(m.middleware);
+
+      try {
         const storedState: Record<string, unknown> = {};
-        await Promise.all(Settings.subscribedSliceIds.map(async (sliceId) => {
-        const s = await getStoredState(sliceId);
-        if (s) storedState[sliceId] = s;
-        }));
+        await Promise.all(
+          Settings.subscribedSliceIds.map(async (sliceId) => {
+            const s = await getStoredState(sliceId);
+            if (s) storedState[sliceId] = s;
+          }),
+        );
         persistedStore.dispatch(REHYDRATE(storedState) as any);
-    } catch (error) {
+      } catch (error) {
         clearTimeout(signalTimeout);
         persistenceOptions?.onRehydrationError?.(error);
         reject(error);
-    }
-  });
+      }
+    });
 
   /**
-   * Clears all persisted state for the subscribed slices from the storage.
-   * This is a destructive action that will remove the data from the storage medium.
-   * @returns A promise that resolves when all persisted states have been cleared.
+   * Clears all persisted state for the subscribed slices from storage.
+   * This is a destructive action and will permanently remove the data.
+   * @returns A promise that resolves when all subscribed states have been cleared.
    * @public
    */
   const clearPersistedState = async () => {
-    // Clear the persisted state from storage
-    await Promise.all(Settings.subscribedSliceIds.map(async (sliceId) => {
-      await clearPersistedStorage(sliceId);
-    }));
-  }
+    await Promise.all(
+      Settings.subscribedSliceIds.map(async (sliceId) => {
+        await clearPersistedStorage(sliceId);
+      }),
+    );
+  };
 
   /**
-   * Overrides the original `replaceReducer` function to automatically
-   * trigger rehydration after a new reducer has been injected.
+   * An override of the original `replaceReducer` function that automatically
+   * triggers rehydration after a new reducer is injected, ensuring that the
+   * new part of the state is also rehydrated.
    * @internal
    */
   const _replaceReducer = persistedStore.replaceReducer;
   persistedStore.replaceReducer = (nR) => {
     _replaceReducer.call(persistedStore, nR);
-    rehydrate();
+    rehydrate().catch((error) => {
+      if (process.env.NODE_ENV !== 'production') {
+        console.error(
+          'rtk-persist: Error while rehydrating state.',
+          error,
+        );
+      }
+    });
   };
 
-  // Asynchronously trigger the initial rehydration.
-  rehydrate();
+  // Asynchronously trigger the initial rehydration on startup.
+  rehydrate().catch((error) => {
+    if (process.env.NODE_ENV !== 'production') {
+      console.error(
+        'rtk-persist: Error while rehydrating state.',
+        error,
+      );
+    }
+  });
 
   return { ...persistedStore, rehydrate, clearPersistedState };
-}
+};

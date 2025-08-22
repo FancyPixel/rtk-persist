@@ -3,7 +3,7 @@ import {
   CreateSliceOptions,
   PayloadAction,
   SliceCaseReducers,
-  SliceSelectors
+  SliceSelectors,
 } from '@reduxjs/toolkit';
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
@@ -13,15 +13,18 @@ import UpdatedAtHelper from './updatedAtHelper';
 import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
 
 /**
- * A wrapper around the standard RTK `createSlice()` function that adds
- * persistence capabilities.
+ * A wrapper around Redux Toolkit's `createSlice` that enhances it with
+ * automatic state persistence. Slices created with this function will have
+ * their state saved to storage on every change and rehydrated on startup.
  *
- * The state will be persisted across multiple application reloads.
- * This function requires the use of {@link configurePersistedStore}.
+ * This function must be used with a store configured by `configurePersistedStore`.
  *
  * @param sliceOptions - The standard `CreateSliceOptions` object from Redux Toolkit.
- * @param nesting - An optional dot-separated string path indicating where the slice is nested within the root state.
- * @returns A Redux slice object with persistence enabled, enhanced with a `nestedPath` property that has a correctly inferred literal type.
+ * @param nestedPath - An optional dot-separated string path indicating where the
+ * slice's state is located within the root state. If not provided, `reducerPath`
+ * or `name` from `sliceOptions` is used.
+ * @returns A Redux slice object with persistence enabled, augmented with a
+ * `nestedPath` property for state tracking.
  *
  * @public
  */
@@ -30,35 +33,40 @@ export const createPersistedSlice = <
   Name extends string,
   PCR extends SliceCaseReducers<SliceState>,
   ReducerPath extends string = Name,
-  PeristedSelectors extends SliceSelectors<SliceState> = SliceSelectors<SliceState>,
-  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath
+  PersistedSelectors extends SliceSelectors<SliceState> = SliceSelectors<SliceState>,
+  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath,
 >(
   sliceOptions: CreateSliceOptions<
     SliceState,
     PCR,
     Name,
     ReducerPath,
-    PeristedSelectors
+    PersistedSelectors
   >,
   nestedPath?: Nesting,
-): PersistedSlice<SliceState, PCR, Name, ReducerPath, PeristedSelectors, Nesting> => {
-  /**
-   * Registers the slice's name to the list of persisted slices.
-   * This allows the persistence logic to identify which parts of the state to manage.
-   */
+): PersistedSlice<
+  SliceState,
+  PCR,
+  Name,
+  ReducerPath,
+  PersistedSelectors,
+  Nesting
+> => {
+  // Register the slice for persistence tracking.
   Settings.subscribeSlice(sliceOptions.name);
 
   /**
-   * A timeout variable to manage the debouncing of the storage write.
+   * A timeout variable to manage the debouncing of storage writes.
    * @internal
    */
   let debounceTimeout: NodeJS.Timeout | null = null;
 
   /**
    * The full dot-separated path to the slice's state within the root state object.
-   * If `nestedPath` is not provided, it defaults to the slice's name or reducerPath.
    */
-  const finalNestedPath = nestedPath ?? sliceOptions.reducerPath ?? sliceOptions.name as Nesting;
+  const finalNestedPath = (nestedPath ??
+    sliceOptions.reducerPath ??
+    sliceOptions.name) as Nesting;
 
   /**
    * Debounces the `writePersistedStorage` function to prevent excessive writes
@@ -69,32 +77,42 @@ export const createPersistedSlice = <
   const onDump = (state: Record<string, any>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      // Use deepGetByPath with the single correct path
       const sliceState = deepGetByPath(state, finalNestedPath);
       writePersistedStorage(sliceState, sliceOptions.name);
     }, 100);
   };
 
   /**
-   * Creates a typed instance of the listener middleware's startListening function.
+   * A typed instance of the listener middleware's `startListening` function.
    * @internal
    */
   const startAppListening =
     listenerMiddleware.startListening.withTypes<Record<string, any>>();
 
   /**
-   * Creates the slice using the default options passed by the user,
-   * enhancing it with persistence logic.
+   * The main slice, created with persistence-specific enhancements.
    * @internal
    */
   const slice = createSlice({
     ...sliceOptions,
-    extraReducers: builder => {
+    extraReducers: (builder) => {
       // Add a case to handle the rehydration of state from storage.
-      builder.addCase(REHYDRATE.toString(), (_state, action: PayloadAction<RehydrateActionPayload<Name, SliceState>>): void | SliceState => {
-        if (action.payload?.[sliceOptions.name]) return action.payload[sliceOptions.name];
-      });
-      const b = new Builder(builder, UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name));
+      builder.addCase(
+        REHYDRATE.toString(),
+        (
+          _state,
+          action: PayloadAction<RehydrateActionPayload<Name, SliceState>>,
+        ): void | SliceState => {
+          console.log(action)
+          if (action.payload?.[sliceOptions.name])
+            return action.payload[sliceOptions.name];
+        },
+      );
+      // Wrap the builder to automatically track state changes for persistence.
+      const b = new Builder(
+        builder,
+        UpdatedAtHelper.onStateChange.bind(null, sliceOptions.name),
+      );
       // Allow the user to add their own extra reducers.
       sliceOptions.extraReducers?.(b);
     },
@@ -102,10 +120,10 @@ export const createPersistedSlice = <
 
   /**
    * Listens for each action generated by the slice to trigger persistence
-   * immediately after the state is updated by its own reducers.
+   * after the state is updated by its own reducers.
    * @internal
    */
-  Object.keys(slice.actions).forEach(type => {
+  Object.keys(slice.actions).forEach((type) => {
     startAppListening({
       type: `${slice.name}/${type}`,
       effect: (_action, { getState }) => {
@@ -116,25 +134,30 @@ export const createPersistedSlice = <
   });
 
   /**
-   * Listens for any other action to check if the state managed by this slice
-   * has been updated by an extra reducer and needs to be persisted.
+   * Listens for external actions to check if this slice's state was updated
+   * by an extra reducer, triggering persistence if necessary.
    * @internal
    */
   startAppListening({
     predicate: (action) => {
-      // Exclude the slice's own actions (already handled) and the rehydrate action.
-      if (action.type === REHYDRATE.toString() || action.type.startsWith(`${slice.name}/`)) return false;
+      // Exclude the slice's own actions and the rehydrate action.
+      if (
+        action.type === REHYDRATE.toString() ||
+        action.type.startsWith(`${slice.name}/`)
+      )
+        return false;
       return true;
     },
     effect: async (_action, { getState }) => {
-      if (!await UpdatedAtHelper.shouldSave(sliceOptions.name)) return;
+      if (!(await UpdatedAtHelper.shouldSave(sliceOptions.name))) return;
       const state = getState();
       onDump(state);
     },
   });
 
   /**
-   * Listens for the rehydration action to update the local timestamp
+   * Listens for the rehydration action to update the local timestamp,
+   * ensuring synchronization with storage.
    * @internal
    */
   startAppListening({
@@ -142,9 +165,15 @@ export const createPersistedSlice = <
     effect: () => UpdatedAtHelper.onSave(sliceOptions.name),
   });
 
-  // This is the cleanest way to construct the final object and apply the
-  // necessary type assertion once.
+  // Augment the slice with persistence-specific properties and return.
   return Object.assign(slice, {
     nestedPath: finalNestedPath,
-  }) as PersistedSlice<SliceState, PCR, Name, ReducerPath, PeristedSelectors, Nesting>;
+  }) as PersistedSlice<
+    SliceState,
+    PCR,
+    Name,
+    ReducerPath,
+    PersistedSelectors,
+    Nesting
+  >;
 };

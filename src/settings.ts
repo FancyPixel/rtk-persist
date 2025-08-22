@@ -1,102 +1,94 @@
-import { StorageHandler } from "./types";
+import { StorageHandler } from './types';
 
 /**
- * Global storage handler variable
+ * A private variable to hold the global storage handler.
  * @private
  */
 let _storageHandler: StorageHandler | undefined;
 
 /**
- * Global storage unique id variable
+ * A private variable to hold the global application ID.
  * @private
  */
 let _applicationId: string | undefined;
 
 /**
- * Global array of subscribed slice identifiers
+ * A private array to store the IDs of all subscribed slices.
  * @private
  */
 let _subscribedSliceIds: string[] = [];
 
 /**
- * Global Setting class that encapsulates all the library settings.
+ * A static class that manages global settings for the `rtk-persist` library.
+ * It provides a centralized way to configure the storage handler, application
+ * ID, and to track which slices are subscribed for persistence.
+ *
+ * This class is not meant to be instantiated.
  * @internal
  */
 export default class Settings {
   constructor() {
-    throw new Error('This class is not meant to be instantiated.');
+    throw new Error('The Settings class is a static utility and should not be instantiated.');
   }
 
   /**
-   * Returns the selected storage handler if set.
+   * Gets the currently configured storage handler.
    *
-   * @returns The selected storage handler
-   *
-   * @throws {@link TypeError}
-   * This exception is thrown if the storage handler has not been set.
-   *
-   * @internal
+   * @returns The active storage handler.
+   * @throws {TypeError} If the storage handler has not been set.
    */
   static get storageHandler(): StorageHandler {
     if (!_storageHandler) {
-      throw new TypeError('The default storage handler must be set.');
+      throw new TypeError('A storage handler must be configured before use.');
     }
     return _storageHandler;
   }
 
   /**
-   * Sets the storage handler to be used when persisting the data.
+   * Sets the storage handler to be used for all persistence operations.
    *
-   * @param storageHandler - The selected storage handler.
-   *
-   * @internal
+   * @param storageHandler - The storage handler to use (e.g., `localStorage`).
    */
   static set storageHandler(storageHandler: StorageHandler) {
     _storageHandler = storageHandler;
   }
 
   /**
-   * Returns the storage unique id.
+   * Gets the unique application ID used for namespacing storage keys.
    *
-   * @returns The storage unique id
-   *
-   * @throws {@link TypeError}
-   * This exception is thrown if the id has not been set.
-   *
-   * @internal
+   * @returns The configured application ID.
+   * @throws {TypeError} If the application ID has not been set.
    */
   static get applicationId(): string {
     if (!_applicationId) {
-      throw new TypeError('The storage ID must be set.');
+      throw new TypeError('An application ID must be configured before use.');
     }
     return _applicationId;
   }
 
   /**
-   * Sets the storage id to be used when persisting the data.
+   * Sets the unique application ID. This is used to namespace keys in storage,
+   * preventing conflicts between different applications on the same domain.
    *
-   * @param applicationId - The selected storage id.
-   *
-   * @internal
+   * @param applicationId - The unique identifier for the application.
    */
   static set applicationId(applicationId: string) {
     _applicationId = applicationId;
   }
 
   /**
-   * Returns a copy of all subscribed slice identifiers.
-   * @returns {Array<string>} A new array of slice IDs.
-   * @internal
+   * Returns a copy of the list of all subscribed slice identifiers.
+   * @returns A new array containing the IDs of all slices subscribed to persistence.
    */
   static get subscribedSliceIds(): string[] {
     return [..._subscribedSliceIds];
   }
 
   /**
-   * Subscribes a Redux slice by adding its identifier to the list.
-   * This method prevents duplicate entries.
-   * @param {string} sliceId - The unique identifier of the Redux slice.
-   * @internal
+   * Subscribes a slice to the persistence service by adding its ID to the
+   * internal list. This ensures that the library knows which parts of the
+   * state to manage. Duplicates are ignored.
+   * @param sliceId - The unique identifier of the Redux slice to subscribe.
    */
   static subscribeSlice(sliceId: string) {
     if (!_subscribedSliceIds.includes(sliceId)) {
@@ -105,10 +97,15 @@ export default class Settings {
   }
 }
 
+/**
+ * A utility class for testing purposes that extends the base `Settings`.
+ * It provides a method to reset all global settings to their default,
+ * uninitialized state, ensuring a clean slate between tests.
+ * @internal
+ */
 export class TestSettings extends Settings {
   /**
-   * Restores all settings to their default state.
-   * @internal
+   * Restores all global settings to their initial default values.
    */
   static restoreDefaults() {
     _storageHandler = undefined;
