@@ -98,6 +98,8 @@ export const deepGet = <Name extends string = string>(obj: any, keys: (Name)[]):
  * @returns An array containing the retrieved values. If a path is not found, the corresponding value in the array will be null.
  */
 export const deepGetByPath = (obj: any, path: string): any => {
+  if (path === '') return obj;
+
   // Convert bracket notation to dot notation, then split into an array of keys.
   const keys = path
     .replace(/\[([^\[\]]*)\]/g, '.$1.')
@@ -141,7 +143,7 @@ export type Paths<T> = "" | (T extends Primitive
  *
  * @param path A path that must be a valid key path within the generic type T.
  */
-export const createStatePathValidator = <T extends object>(_path: Paths<T>): void => {
+export const validateNestedPath = <T extends object>(_path: Paths<T>): void => {
   // This function is intentionally empty. Its sole purpose is to enforce
   // type-checking on the 'path' argument at compile time.
 };

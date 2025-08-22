@@ -31,7 +31,7 @@ export const createPersistedSlice = <
   PCR extends SliceCaseReducers<SliceState>,
   ReducerPath extends string = Name,
   PeristedSelectors extends SliceSelectors<SliceState> = SliceSelectors<SliceState>,
-  Nesting extends string | undefined = undefined
+  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath
 >(
   sliceOptions: CreateSliceOptions<
     SliceState,
@@ -40,7 +40,7 @@ export const createPersistedSlice = <
     ReducerPath,
     PeristedSelectors
   >,
-  nesting?: Nesting,
+  nestedPath?: Nesting,
 ): PersistedSlice<SliceState, PCR, Name, ReducerPath, PeristedSelectors, Nesting> => {
   /**
    * Registers the slice's name to the list of persisted slices.
@@ -48,18 +48,17 @@ export const createPersistedSlice = <
    */
   Settings.subscribeSlice(sliceOptions.name);
 
-  const name = sliceOptions.reducerPath ?? sliceOptions.name;
-  /**
-   * The full dot-separated path to the slice's state within the root state object.
-   * @internal
-   */
-  const nestedPath = (nesting && nesting !== '' ? `${nesting}.${name}` : name) as NestedPath<ReducerPath, Nesting>;
-
   /**
    * A timeout variable to manage the debouncing of the storage write.
    * @internal
    */
   let debounceTimeout: NodeJS.Timeout | null = null;
+
+  /**
+   * The full dot-separated path to the slice's state within the root state object.
+   * If `nestedPath` is not provided, it defaults to the slice's name or reducerPath.
+   */
+  const finalNestedPath = nestedPath ?? sliceOptions.reducerPath ?? sliceOptions.name as Nesting;
 
   /**
    * Debounces the `writePersistedStorage` function to prevent excessive writes
@@ -71,7 +70,7 @@ export const createPersistedSlice = <
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
       // Use deepGetByPath with the single correct path
-      const sliceState = deepGetByPath(state, nestedPath);
+      const sliceState = deepGetByPath(state, finalNestedPath);
       writePersistedStorage(sliceState, sliceOptions.name);
     }, 100);
   };
@@ -143,5 +142,9 @@ export const createPersistedSlice = <
     effect: () => UpdatedAtHelper.onSave(sliceOptions.name),
   });
 
-  return { ...slice, nestedPath };
+  // This is the cleanest way to construct the final object and apply the
+  // necessary type assertion once.
+  return Object.assign(slice, {
+    nestedPath: finalNestedPath,
+  }) as PersistedSlice<SliceState, PCR, Name, ReducerPath, PeristedSelectors, Nesting>;
 };

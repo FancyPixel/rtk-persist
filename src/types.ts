@@ -89,38 +89,33 @@ export type ExtractDispatchExtensions<M> = M extends Tuple<infer MiddlewareTuple
 export type NotFunction<T> = T extends Function ? never : T;
 
 /**
- * A conditional type that constructs the full dot-notation path for a nested slice or reducer.
- * If `Nesting` is undefined or an empty string, it returns the `ReducerPath` directly.
- * Otherwise, it prepends the nesting path.
+ * A utility type that creates a valid nesting path for a persisted slice or reducer.
+ * The path must be either an empty string (for a root-level slice/reducer) or a
+ * dot-notation string that ends with the provided `Path`.
  *
- * @internal
+ * @template Path - The name or path of the reducer, which must be the last segment of the nesting path.
  */
-export type NestedPath<
-  ReducerPath extends string,
-  Nesting extends string | undefined
-> = Nesting extends '' | undefined
-    ? ReducerPath
-    : `${NonNullable<Nesting>}.${ReducerPath}`
+export type NestedPath<Path extends string> = '' | Path | `${string}.${Path}`;
 
 /**
  * A utility type that enhances a Redux reducer with properties needed for persistence.
  * It adds `reducerName` and the calculated `nestedPath` to the standard reducer type.
- * @internal
+ * @public
  */
 export type PersistedReducer<
   S extends NotFunction<any>,
   ReducerName extends string,
-  Nesting extends string | undefined
+  Nesting extends NestedPath<ReducerName> = ReducerName
 > = Reducer<S> & {
   reducerName: ReducerName;
-  nestedPath: NestedPath<ReducerName, Nesting>;
+  nestedPath: Nesting;
 };
 
 /**
  * A utility type that enhances a Redux slice with the `nestedPath` property,
  * which represents its full path within the root state.
  *
- * @internal
+ * @public
  */
 export type PersistedSlice<
   SliceState,
@@ -128,9 +123,9 @@ export type PersistedSlice<
   Name extends string,
   ReducerPath extends string,
   PeristedSelectors extends SliceSelectors<SliceState>,
-  Nesting extends string | undefined
+  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath
 > = Slice<SliceState, PCR, Name, ReducerPath, PeristedSelectors> & {
-  nestedPath: NestedPath<ReducerPath, Nesting>;
+  nestedPath: Nesting;
 };
 
 /**

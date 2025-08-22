@@ -68,12 +68,12 @@ const reducer = createPersistedReducer(
 export const createPersistedReducer = <
   ReducerName extends string,
   S extends NotFunction<any>,
-  Nesting extends string | undefined = undefined
+  Nesting extends NestedPath<ReducerName> = ReducerName
 >(
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-  nesting?: Nesting,
+  nestedPath?: Nesting,
 ): PersistedReducer<S, ReducerName, Nesting> => {
   /**
    * Registers the reducer's name to the list of persisted slices.
@@ -82,16 +82,16 @@ export const createPersistedReducer = <
   Settings.subscribeSlice(reducerName);
 
   /**
-   * The full dot-separated path to the slice's state within the root state object.
-   * @internal
-   */
-  const nestedPath = (nesting && nesting !== '' ? `${nesting}.${reducerName}` : reducerName) as NestedPath<ReducerName, Nesting>;
-
-  /**
    * A timeout variable to manage the debouncing of the storage write.
    * @internal
    */
   let debounceTimeout: NodeJS.Timeout | null = null;
+
+  /**
+   * The full dot-separated path to the slice's state within the root state object.
+   * If `nestedPath` is not provided, it defaults to the slice's name or reducerPath.
+   */
+  const finalNestedPath = nestedPath ?? reducerName as Nesting;
 
   /**
    * Debounces the `writePersistedStorage` function to prevent excessive writes
@@ -102,7 +102,7 @@ export const createPersistedReducer = <
   const onDump = (state: Record<string, any>) => {
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
-      const [reducerState] = deepGetByPath(state, nestedPath);
+      const reducerState = deepGetByPath(state, finalNestedPath);
       writePersistedStorage(reducerState, reducerName);
     }, 100);
   };
@@ -159,6 +159,6 @@ export const createPersistedReducer = <
   // necessary type assertion once.
   return Object.assign(reducer, {
     reducerName,
-    nestedPath,
+    nestedPath: finalNestedPath,
   }) as PersistedReducer<S, ReducerName, Nesting>;
 };

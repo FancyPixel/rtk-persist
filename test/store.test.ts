@@ -1,9 +1,9 @@
 import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit';
-import { configurePersistedStore, createPersistedSlice } from '../src';
+import { configurePersistedStore, createPersistedReducer, createPersistedSlice } from '../src';
 import { TestSettings } from '../src/settings';
 import { StorageHandler } from '../src/types';
-import { createStatePathValidator } from '../src/utils';
-import { flushAsync, StorageMock } from './mocks';
+import { validateNestedPath } from '../src/utils';
+import { flushTimersAndPromises, StorageMock } from './mocks';
 
 describe('createPersistedSlice', () => {
   let storage: StorageHandler;
@@ -36,12 +36,12 @@ describe('createPersistedSlice', () => {
       'testApp',
       storage,
     );
-    await flushAsync(); // Allow initial rehydration to complete
+    await flushTimersAndPromises(); // Allow initial rehydration to complete
 
     // Act: Dispatch actions to update the state.
     store.dispatch(counterSlice.actions.increment());
     store.dispatch(counterSlice.actions.increment());
-    await flushAsync();
+    await flushTimersAndPromises();
 
     expect(store.getState().counter.value).toBe(2);
     const persistedState = await storage.getItem('persist:testApp-counter');
@@ -63,7 +63,7 @@ describe('createPersistedSlice', () => {
       'testApp',
       storage,
     );
-    await flushAsync(); // Wait for rehydration to complete
+    await flushTimersAndPromises(); // Wait for rehydration to complete
 
     // Assert: The rehydrated state includes the persisted value.
     const finalState = store.getState().counter;
@@ -85,7 +85,7 @@ describe('createPersistedSlice', () => {
       storage,
     );
 
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Assert: The slice uses its defined initial state.
     expect(store.getState().counter.value).toBe(0);
@@ -109,11 +109,11 @@ describe('createPersistedSlice', () => {
       'testApp',
       storage,
     );
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Act: Dispatch the external action and advance timers.
     store.dispatch(externalAction());
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Assert: The state was updated by the extra reducer and then persisted.
     const persistedState = await storage.getItem('persist:testApp-counter');
@@ -139,7 +139,7 @@ describe('createPersistedSlice', () => {
 
     // Act: Dispatch an action that doesn't affect this slice's state.
     store.dispatch(externalAction());
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Assert: Storage should not be written to, preventing unnecessary operations.
     expect(setItemSpy).not.toHaveBeenCalledWith(expect.anything(), counterSlice.name);
@@ -162,7 +162,7 @@ describe('createPersistedSlice', () => {
       storage,
     );
 
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Assert: The slice gracefully ignores the corrupted data and uses its initial state.
     expect(store.getState().counter.value).toBe(0);
@@ -189,13 +189,57 @@ describe('createPersistedSlice', () => {
     // Act: Dispatch actions to both slices and advance timers.
     store.dispatch(sliceA.actions.update('newA'));
     store.dispatch(sliceB.actions.update('newB'));
-    await flushAsync();
+    await flushTimersAndPromises();
 
     // Assert: Both slices are persisted independently to their own storage keys.
     const itemA = await storage.getItem('persist:testApp-sliceA');
     const itemB = await storage.getItem('persist:testApp-sliceB');
     expect(JSON.parse(itemA!).value).toBe('newA');
     expect(JSON.parse(itemB!).value).toBe('newB');
+  });
+
+  it('should persist a reducer passed directly as the store root', async () => {
+    // Arrange: Create a persisted reducer and specify it's a root reducer by passing `''` as the nesting path.
+    const incrementAction = createAction('increment');
+    const rootCounterReducer = createPersistedReducer(
+        'rootCounter',
+        { value: 0 },
+        (builder) => {
+            builder.addCase(incrementAction, (state) => {
+                state.value += 1;
+            });
+        },
+        '' // An empty string signifies that this reducer is the root of the state.
+    );
+
+    // Assert: The nestedPath should be an empty string for a root reducer.
+    expect(rootCounterReducer.nestedPath).toBe('');
+
+    // Act: Configure the store with the reducer directly at the root.
+    const store = configurePersistedStore(
+        { reducer: rootCounterReducer },
+        'testApp',
+        storage
+    );
+    await flushTimersAndPromises();
+
+    // Act: Dispatch an action to change the state.
+    store.dispatch(incrementAction());
+    await flushTimersAndPromises();
+
+    // Assert - Persistence: The state should be updated and persisted correctly.
+    expect(store.getState().value).toBe(1);
+    const persistedState = await storage.getItem('persist:testApp-rootCounter');
+    expect(JSON.parse(persistedState!).value).toBe(1);
+
+    // Assert - Rehydration: A new store should rehydrate to the persisted state.
+    const newStore = configurePersistedStore(
+        { reducer: rootCounterReducer },
+        'testApp',
+        storage
+    );
+    await flushTimersAndPromises();
+    expect(newStore.getState().value).toBe(1);
   });
 
   describe('with nesting', () => {
@@ -211,7 +255,7 @@ describe('createPersistedSlice', () => {
             name: 'sliceB',
             initialState: { value: 'b' },
             reducers: { update: (state, action: PayloadAction<string>) => { state.value = action.payload } },
-        }, 'nested');
+        }, 'nested.sliceB');
 
         const nestedReducer = combineReducers({
             [sliceB.name]: sliceB.reducer,
@@ -228,7 +272,7 @@ describe('createPersistedSlice', () => {
             storage,
         );
 
-        await flushAsync();
+        await flushTimersAndPromises();
 
         // Assert: Check that the nested path is correctly constructed.
         expect(sliceB.nestedPath).toBe('nested.sliceB');
@@ -236,7 +280,7 @@ describe('createPersistedSlice', () => {
         // Act: Dispatch actions to both slices.
         store.dispatch(sliceA.actions.update('newA'));
         store.dispatch(sliceB.actions.update('newB'));
-        await flushAsync();
+        await flushTimersAndPromises();
 
         // Assert: Both slices are persisted correctly.
         const itemA = await storage.getItem('persist:testApp-sliceA');
@@ -258,7 +302,7 @@ describe('createPersistedSlice', () => {
             'testApp',
             storage,
         );
-        await flushAsync();
+        await flushTimersAndPromises();
 
         // Assert: The state is correctly rehydrated.
         const state = newStore.getState();
@@ -267,7 +311,7 @@ describe('createPersistedSlice', () => {
     });
   });
 
-  describe('createStatePathValidator', () => {
+  describe('validateNestedPath', () => {
     it('should correctly validate nested paths at compile time', () => {
       // This test primarily serves as a compile-time check. If it compiles, it passes.
       type NestedState = {
@@ -283,13 +327,13 @@ describe('createPersistedSlice', () => {
         name: 'sliceA',
         initialState: { value: 'a' },
         reducers: {},
-      }, 'level1.level2');
+      }, 'level1.level2.sliceA');
 
       // This should compile without errors.
-      createStatePathValidator<NestedState>(sliceA.nestedPath);
+      validateNestedPath<NestedState>(sliceA.nestedPath);
 
       // This would cause a TypeScript error because the path is invalid:
-      // createStatePathValidator<NestedState>('level1.sliceA');
+      // validateNestedPath<NestedState>('level1.sliceA');
 
       // Since this is a compile-time check, we just need a basic runtime assertion.
       expect(true).toBe(true);
