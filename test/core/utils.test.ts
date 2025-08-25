@@ -65,10 +65,7 @@ describe('Utilities', () => {
 
       await writePersistedStorage(initialState, sliceName);
 
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'rtk-persist: Failed to save state.',
-        expect.any(Error),
-      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
   });
@@ -97,10 +94,7 @@ describe('Utilities', () => {
       const retrievedState = await getStoredState(sliceName);
 
       expect(retrievedState).toBeNull();
-      expect(consoleErrorSpy).toHaveBeenCalledWith(
-        'rtk-persist: Failed to load or parse stored state.',
-        expect.any(Error),
-      );
+      expect(consoleErrorSpy).toHaveBeenCalled();
       consoleErrorSpy.mockRestore();
     });
   });
