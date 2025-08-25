@@ -9,5 +9,6 @@ export const store = configurePersistedStore({
   },
 }, 'countersApp', localStorage);
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+export type Store = Awaited<typeof store>;
+export type RootState = ReturnType<Store['getState']>;
+export type AppDispatch = Store['dispatch'];

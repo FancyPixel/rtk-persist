@@ -4,9 +4,9 @@
  * object traversal logic used throughout the rtk-persist library.
  */
 
-import { TestSettings } from '../src/settings';
-import { StorageHandler } from '../src/types';
-import UpdatedAtHelper from '../src/updatedAtHelper';
+import { TestSettings } from '../../src/core/settings';
+import { StorageHandler } from '../../src/core/types';
+import UpdatedAtHelper from '../../src/core/updatedAtHelper';
 import {
   clearPersistedStorage,
   deepGetByPath,
@@ -14,11 +14,11 @@ import {
   getStoredState,
   REHYDRATE,
   writePersistedStorage,
-} from '../src/utils';
+} from '../../src/core/utils';
 import { StorageMock } from './mocks';
 
 // Mock the UpdatedAtHelper to isolate its functionality during tests.
-jest.mock('../src/updatedAtHelper', () => ({
+jest.mock('../src/core/updatedAtHelper', () => ({
   onSave: jest.fn(),
 }));
 

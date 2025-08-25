@@ -103,7 +103,6 @@ export const createPersistedSlice = <
           _state,
           action: PayloadAction<RehydrateActionPayload<Name, SliceState>>,
         ): void | SliceState => {
-          console.log(action)
           if (action.payload?.[sliceOptions.name])
             return action.payload[sliceOptions.name];
         },

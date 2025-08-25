@@ -5,8 +5,8 @@
  * state changes, save operations, and concurrency.
  */
 
-import { TestSettings } from '../src/settings';
-import UpdatedAtHelper, { TestUpdatedAtHelper } from '../src/updatedAtHelper';
+import { TestSettings } from '../../src/core/settings';
+import UpdatedAtHelper, { TestUpdatedAtHelper } from '../../src/core/updatedAtHelper';
 import { StorageMock } from './mocks';
 
 describe('UpdatedAtHelper', () => {

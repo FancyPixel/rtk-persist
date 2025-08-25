@@ -6,9 +6,9 @@
  */
 
 import { createAction, PayloadAction } from '@reduxjs/toolkit';
-import { createPersistedReducer } from '../src/reducer';
-import { RehydrateActionPayload } from '../src/types';
-import { REHYDRATE } from '../src/utils';
+import { createPersistedReducer } from '../../src/core/reducer';
+import { RehydrateActionPayload } from '../../src/core/types';
+import { REHYDRATE } from '../../src/core/utils';
 
 describe('createPersistedReducer', () => {
   // --- Test Setup ---

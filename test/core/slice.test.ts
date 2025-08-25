@@ -5,9 +5,10 @@
  */
 
 import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit';
-import { configurePersistedStore, createPersistedSlice } from '../src';
-import { TestSettings } from '../src/settings';
-import { StorageHandler } from '../src/types';
+import { TestSettings } from '../../src/core/settings';
+import { createPersistedSlice } from '../../src/core/slice';
+import { configurePersistedStore } from '../../src/core/store';
+import { StorageHandler } from '../../src/core/types';
 import { flushTimersAndPromises, StorageMock } from './mocks';
 
 describe('createPersistedSlice', () => {
@@ -37,7 +38,7 @@ describe('createPersistedSlice', () => {
           },
         },
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -68,7 +69,7 @@ describe('createPersistedSlice', () => {
           });
         },
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -93,7 +94,7 @@ describe('createPersistedSlice', () => {
         initialState: { value: 0 },
         reducers: {}, // This slice does not handle the action.
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -121,7 +122,7 @@ describe('createPersistedSlice', () => {
       });
 
       // Act: Configure the store, which triggers rehydration.
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -141,7 +142,7 @@ describe('createPersistedSlice', () => {
       });
 
       // Act
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -162,7 +163,7 @@ describe('createPersistedSlice', () => {
       });
 
       // Act
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -199,7 +200,7 @@ describe('createPersistedSlice', () => {
         'nested.sliceB',
       );
       const nestedReducer = combineReducers({ [sliceB.name]: sliceB.reducer });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         {
           reducer: { [sliceA.name]: sliceA.reducer, nested: nestedReducer },
         },
@@ -228,7 +229,7 @@ describe('createPersistedSlice', () => {
       TestSettings.subscribeSlice(sliceA.name);
       TestSettings.subscribeSlice(sliceB.name);
 
-      const newStore = configurePersistedStore(
+      const newStore = await configurePersistedStore(
         {
           reducer: { [sliceA.name]: sliceA.reducer, nested: nestedReducer },
         },
@@ -253,7 +254,7 @@ describe('createPersistedSlice', () => {
         initialState: lazyInitialState,
         reducers: {},
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [slice.name]: slice.reducer } },
         'testApp',
         storage,
@@ -276,7 +277,7 @@ describe('createPersistedSlice', () => {
           },
         },
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [slice.name]: slice.reducer } },
         'testApp',
         storage,
@@ -304,7 +305,7 @@ describe('createPersistedSlice', () => {
         initialState: { value: 0, other: 'default' },
         reducers: {},
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [slice.name]: slice.reducer } },
         'testApp',
         storage,

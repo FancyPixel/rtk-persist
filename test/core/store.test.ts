@@ -5,14 +5,12 @@
  */
 
 import { createAction } from '@reduxjs/toolkit';
-import {
-  configurePersistedStore,
-  createPersistedReducer,
-  createPersistedSlice,
-} from '../src';
-import { TestSettings } from '../src/settings';
-import { StorageHandler } from '../src/types';
-import { validateNestedPath } from '../src/utils';
+import { createPersistedReducer } from '../../src/core/reducer';
+import { TestSettings } from '../../src/core/settings';
+import { createPersistedSlice } from '../../src/core/slice';
+import { configurePersistedStore } from '../../src/core/store';
+import { StorageHandler } from '../../src/core/types';
+import { validateNestedPath } from '../../src/core/utils';
 import { flushTimersAndPromises, StorageMock } from './mocks';
 
 describe('configurePersistedStore', () => {
@@ -42,7 +40,7 @@ describe('configurePersistedStore', () => {
           },
         },
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -61,7 +59,7 @@ describe('configurePersistedStore', () => {
       // Arrange for rehydration check.
       TestSettings.restoreDefaults();
       TestSettings.subscribeSlice(counterSlice.name)
-      const newStore = configurePersistedStore(
+      const newStore = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -84,7 +82,7 @@ describe('configurePersistedStore', () => {
         },
       });
       const regularReducer = (state = { value: 'regular' }) => state;
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         {
           reducer: {
             [persistedSlice.name]: persistedSlice.reducer,
@@ -122,7 +120,7 @@ describe('configurePersistedStore', () => {
       );
 
       // Act
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: rootCounterReducer },
         'testApp',
         storage,
@@ -139,7 +137,7 @@ describe('configurePersistedStore', () => {
       expect(JSON.parse(persistedState!).value).toBe(1);
 
       // Assert - Rehydration
-      const newStore = configurePersistedStore(
+      const newStore = await configurePersistedStore(
         { reducer: rootCounterReducer },
         'testApp',
         storage,
@@ -149,60 +147,7 @@ describe('configurePersistedStore', () => {
     });
   });
 
-  describe('Store Methods and Callbacks', () => {
-    it('should call rehydration lifecycle callbacks correctly', async () => {
-      // Arrange
-      const onRehydrationStart = jest.fn();
-      const onRehydrationSuccess = jest.fn();
-      const onRehydrationError = jest.fn();
-      const counterSlice = createPersistedSlice({
-        name: 'counter',
-        initialState: { value: 0 },
-        reducers: {},
-      });
-
-      // Act
-      configurePersistedStore(
-        { reducer: { [counterSlice.name]: counterSlice.reducer } },
-        'testApp',
-        storage,
-        { onRehydrationStart, onRehydrationSuccess, onRehydrationError },
-      );
-      await flushTimersAndPromises();
-
-      // Assert
-      expect(onRehydrationStart).toHaveBeenCalledTimes(1);
-      expect(onRehydrationSuccess).toHaveBeenCalledTimes(1);
-      expect(onRehydrationError).not.toHaveBeenCalled();
-    });
-
-    it('should call onRehydrationError on timeout', async () => {
-      // Arrange
-      const onRehydrationError = jest.fn();
-      storage.getItem = jest.fn(
-        () => new Promise(() => {}),
-      ); // Promise that never resolves
-      const counterSlice = createPersistedSlice({
-        name: 'counter',
-        initialState: { value: 0 },
-        reducers: {},
-      });
-
-      // Act
-      configurePersistedStore(
-        { reducer: { [counterSlice.name]: counterSlice.reducer } },
-        'testApp',
-        storage,
-        { onRehydrationError, rehydrationTimeout: 100 },
-      );
-      await jest.advanceTimersByTimeAsync(150);
-
-      // Assert
-      expect(onRehydrationError).toHaveBeenCalledWith(
-        expect.any(Error),
-      );
-    });
-
+  describe('Store Methods', () => {
     it('should manually rehydrate the store when rehydrate() is called', async () => {
       // Arrange
       const counterSlice = createPersistedSlice({
@@ -210,7 +155,7 @@ describe('configurePersistedStore', () => {
         initialState: { value: 0 },
         reducers: {},
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,
@@ -237,7 +182,7 @@ describe('configurePersistedStore', () => {
           },
         },
       });
-      const store = configurePersistedStore(
+      const store = await configurePersistedStore(
         { reducer: { [counterSlice.name]: counterSlice.reducer } },
         'testApp',
         storage,

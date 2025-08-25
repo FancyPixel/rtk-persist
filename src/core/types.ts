@@ -192,10 +192,4 @@ export type PersistedStore<
 export interface PersistenceOptions {
   /** The maximum time in milliseconds to wait for rehydration before timing out. Defaults to 5000. */
   rehydrationTimeout?: number;
-  /** An optional callback invoked when the rehydration process begins. */
-  onRehydrationStart?: () => void;
-  /** An optional callback invoked when rehydration completes successfully. */
-  onRehydrationSuccess?: () => void;
-  /** An optional callback invoked if an error occurs during rehydration. */
-  onRehydrationError?: (error: unknown) => void;
 }

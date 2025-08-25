@@ -6,9 +6,9 @@
  * of the TestSettings utility.
  */
 
-import { configurePersistedStore } from '../src';
-import Settings, { TestSettings } from '../src/settings';
-import { StorageHandler } from '../src/types';
+import Settings, { TestSettings } from '../../src/core/settings';
+import { configurePersistedStore } from '../../src/core/store';
+import { StorageHandler } from '../../src/core/types';
 import { mockPersistedSliceFactory, StorageMock } from './mocks';
 
 describe('Settings', () => {

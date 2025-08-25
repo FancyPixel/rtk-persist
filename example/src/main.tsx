@@ -1,19 +1,14 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import { Provider } from 'react-redux'
+import React from 'react'
+import ReactDOM from 'react-dom/client'
+import { PersistedProvider } from 'rtk-persist'
 import App from './App.tsx'
 import './index.css'
 import { store } from './state/store.ts'
 
-// Get the root element from the DOM.
-const rootElement = document.getElementById('root')!;
-const root = createRoot(rootElement);
-
-// Render the application.
-root.render(
-  <StrictMode>
-    <Provider store={store}>
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <PersistedProvider store={store} loader={<div>Loading state...</div>}>
       <App />
-    </Provider>
-  </StrictMode>
-);
+    </PersistedProvider>
+  </React.StrictMode>,
+)

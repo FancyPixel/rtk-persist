@@ -11,11 +11,12 @@ The library works by wrapping standard Redux Toolkit functions, adding persisten
 ## ✨ Features
 
 * **Effortless Persistence**: Persist any Redux Toolkit slice or reducer with minimal configuration.
+* **Asynchronous Rehydration**: Store creation is now asynchronous, ensuring that your app only renders after the state has been fully rehydrated.
 * **Seamless Integration**: Designed as a drop-in replacement for RTK functions. Adding or removing persistence is as simple as changing an import.
+* **React Redux Integration**: Comes with a `<PersistedProvider />` and a `usePersistedStore` hook for easy integration with React applications.
 * **Flexible API**: Choose between a `createPersistedSlice` utility or a `createPersistedReducer` builder syntax.
 * **Nested State Support**: Easily persist slices or reducers that are deeply nested within your root state using a simple `nestedPath` option.
 * **Storage Agnostic**: Works with any storage provider that implements a simple `getItem`, `setItem`, and `removeItem` interface.
-* **Rehydration Lifecycle**: Use optional callbacks (`onRehydrationStart`, `onRehydrationSuccess`, `onRehydrationError`) to react to the persistence lifecycle.
 * **TypeScript Support**: Fully typed to ensure a great developer experience with path validation.
 * **Minimal Footprint**: Extremely lightweight with a production size under 10 KB.
 
@@ -35,13 +36,13 @@ or
 npm install --save rtk-persist
 ```
 
-The package has a peer dependency on `@reduxjs/toolkit`.
+The package has a peer dependency on `@reduxjs/toolkit` and `react-redux` if you use the React integration.
 
 <br />
 
 ## 🚀 Quick Start
 
-`rtk-persist` offers two ways to make your state persistent. Both require using `configurePersistedStore` in your store setup.
+`rtk-persist` offers two ways to make your state persistent. Both require using `createPersistedStore` in your store setup.
 
 ### Option 1: Using `createPersistedSlice`
 
@@ -111,18 +112,18 @@ export const counterReducer = createPersistedReducer(
 
 ### 2. Configure the Store
 
-Whichever option you choose, you must use `configurePersistedStore` and provide a storage handler. The store is created synchronously, and rehydration from storage happens in the background.
+Whichever option you choose, you must use `createPersistedStore` and provide a storage handler. The store creation is **asynchronous** and returns a promise that resolves with the rehydrated store.
 
 ```typescript
 // app/store.ts
-import { configurePersistedStore } from 'rtk-persist';
+import { createPersistedStore } from 'rtk-persist';
 import { counterSlice } from '../features/counter/counterSlice';
 // import { counterReducer } from '../features/counter/counterReducer';
 
 // For web, use localStorage or sessionStorage
 const storage = localStorage;
 
-export const store = configurePersistedStore(
+export const store = createPersistedStore(
   {
     reducer: {
       // IMPORTANT: The key must match the slice's `name` or the reducer's `name`.
@@ -131,16 +132,72 @@ export const store = configurePersistedStore(
     },
   },
   'my-app-id', // A unique ID for your application
-  storage,
-  {
-    onRehydrationStart: () => console.log('Rehydration started...'),
-    onRehydrationSuccess: () => console.log('Rehydration successful!'),
-    onRehydrationError: (error) => console.error('Rehydration failed:', error),
-  }
+  storage
 );
 
-export type RootState = ReturnType<typeof store.getState>;
-export type AppDispatch = typeof store.dispatch;
+// Note: RootState and AppDispatch types need to be inferred differently
+// due to the asynchronous nature of the store.
+// This is typically handled within your React application setup.
+export type Store = Awaited<typeof store>;
+export type RootState = ReturnType<Store['getState']>;
+export type AppDispatch = Store['dispatch'];
+```
+
+<br />
+
+## ⚛️ React Redux Integration
+
+For React applications, `rtk-persist` provides a `PersistedProvider` and a `usePersistedStore` hook to make integration seamless.
+
+### `PersistedProvider`
+
+This component replaces the standard `Provider` from `react-redux`. It waits for the store to be rehydrated before rendering your application, preventing any flicker of initial state.
+
+#### Usage
+
+In your application's entry point (e.g., `main.tsx` or `index.js`), wrap your `App` component with `PersistedProvider`.
+
+```tsx
+// main.tsx
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App';
+import { PersistedProvider } from 'rtk-persist/integrations/react-redux';
+import { store } from './state/store'; // This is the promise from createPersistedStore
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    <PersistedProvider store={store} loader={<div>Loading...</div>}>
+      <App />
+    </PersistedProvider>
+  </React.StrictMode>,
+);
+```
+
+The `PersistedProvider` accepts two props:
+* `store`: The promise returned by `createPersistedStore`.
+* `loader` (optional): A React node to display while the store is rehydrating.
+
+### `usePersistedStore`
+
+A custom hook that provides access to the rehydrated store instance. This is useful for dispatching actions or accessing store methods like `flush`.
+
+#### Usage
+
+```tsx
+import React from 'react';
+import { usePersistedStore } from 'rtk-persist/integrations/react-redux';
+
+const MyComponent = () => {
+  const { store } = usePersistedStore();
+
+  const handleSaveNow = () => {
+    // Manually forces the store to save its current state to storage.
+    store.flush();
+  };
+
+  return <button onClick={handleSaveNow}>Save Now</button>;
+};
 ```
 
 <br />
@@ -198,14 +255,14 @@ export const counterSlice = createPersistedSlice(
 
 // app/store.ts
 import { combineReducers } from '@reduxjs/toolkit';
-import { configurePersistedStore } from 'rtk-persist';
+import { createPersistedStore } from 'rtk-persist';
 import { counterSlice } from '../features/counter/counterSlice';
 
 const featuresReducer = combineReducers({
   [counterSlice.name]: counterSlice.reducer,
 });
 
-export const store = configurePersistedStore(
+export const store = createPersistedStore(
   {
     reducer: {
       features: featuresReducer,
@@ -252,7 +309,7 @@ A wrapper around RTK's `createReducer` that adds persistence.
 
 ---
 
-### `configurePersistedStore`
+### `createPersistedStore`
 
 A wrapper around RTK's `configureStore`.
 
@@ -263,15 +320,13 @@ A wrapper around RTK's `configureStore`.
 * **`storageHandler`**: A storage object that implements `getItem`, `setItem`, and `removeItem`.
 * **`persistenceOptions`** (optional): An object to control the persistence behavior:
     * `rehydrationTimeout` (optional, `number`): Max time in ms to wait for rehydration. Defaults to `5000`.
-    * `onRehydrationStart` (optional, `() => void`): Callback invoked when rehydration begins.
-    * `onRehydrationSuccess` (optional, `() => void`): Callback invoked on successful rehydration.
-    * `onRehydrationError` (optional, `(error: unknown) => void`): Callback invoked on rehydration error.
 
 #### Returns
 
-* A `PersistedStore` object, which is a standard Redux store enhanced with the following methods:
+* A `Promise<PersistedStore>` object, which resolves to a standard Redux store enhanced with the following methods:
     * **`rehydrate()`**: A function to manually trigger rehydration from storage.
     * **`clearPersistedState()`**: A function that clears all persisted data for the application from storage.
+    * **`flush()`**: A function that immediately persists the current state to storage.
 
 <br />
 
@@ -286,4 +341,4 @@ This library was crafted from our daily experiences building modern web and mobi
 ## 📄 License
 
 This project is licensed under the MIT License.
-      
+            

@@ -6,8 +6,8 @@
  */
 
 import { PayloadAction } from '@reduxjs/toolkit';
-import { createPersistedSlice } from '../src/slice';
-import { StorageHandler } from '../src/types';
+import { createPersistedSlice } from '../../src/core/slice';
+import { StorageHandler } from '../../src/core/types';
 
 /**
  * A simple in-memory storage mock that implements the `StorageHandler` interface.

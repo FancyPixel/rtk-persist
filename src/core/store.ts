@@ -21,6 +21,7 @@ import {
 } from './types';
 import { clearPersistedStorage, getStoredState, REHYDRATE } from './utils';
 
+
 /**
  * A wrapper around Redux Toolkit's `configureStore` that enhances it with
  * automatic state persistence. It sets up the necessary middleware and handles
@@ -31,10 +32,16 @@ import { clearPersistedStorage, getStoredState, REHYDRATE } from './utils';
  * @param storageHandler - The storage engine to use (e.g., `localStorage`, `sessionStorage`).
  * @param persistenceOptions - Optional configuration for persistence behavior.
  * @param persistenceOptions.rehydrationTimeout - Max time in ms to wait for rehydration. Defaults to 5000.
- * @param persistenceOptions.onRehydrationStart - Callback invoked when rehydration begins.
- * @param persistenceOptions.onRehydrationSuccess - Callback invoked on successful rehydration.
- * @param persistenceOptions.onRehydrationError - Callback invoked if rehydration fails.
- * @returns A configured Redux store, augmented with `rehydrate` and `clearPersistedState` methods.
+ * @returns A promise that resolves with a configured Redux store, augmented with `rehydrate` and `clearPersistedState` methods.
+ *
+ * @example
+ * ```typescript
+ * const store = await configurePersistedStore(
+ * { reducer: rootReducer },
+ * 'my-app',
+ * localStorage,
+ * );
+ * ```
  *
  * {@link @reduxjs/toolkit#configureStore}
  *
@@ -58,7 +65,7 @@ export const configurePersistedStore: <
   applicationId: string,
   storageHandler: StorageHandler,
   persistenceOptions?: PersistenceOptions,
-) => PersistedStore<S, A, M, E> = <
+) => Promise<PersistedStore<S, A, M, E>> = async <
   S extends Record<string, unknown> = any,
   A extends Action = UnknownAction,
   M extends Tuple<Middlewares<S>> = Tuple<[ThunkMiddlewareFor<S>]>,
@@ -98,22 +105,17 @@ export const configurePersistedStore: <
   });
 
   /**
-   * Manually triggers the rehydration of the store from storage. This can be
-   * useful for reloading persisted state on demand, outside of the initial
-   * application load.
-   * @returns A promise that resolves upon successful rehydration or rejects on
-   * timeout or error.
+   * Asynchronously rehydrates the state from storage. It dispatches a `REHYDRATE`
+   * action with the stored state, allowing reducers to merge it.
+   * @returns A promise that resolves when rehydration is complete.
    * @public
    */
   const rehydrate = () =>
     new Promise<void>(async (resolve, reject) => {
-      persistenceOptions?.onRehydrationStart?.();
-
       const signalTimeout = setTimeout(() => {
         const timeoutError = new Error(
           `Rehydration timed out after ${persistenceOptions?.rehydrationTimeout}ms`,
         );
-        persistenceOptions?.onRehydrationError?.(timeoutError);
         reject(timeoutError);
       }, persistenceOptions?.rehydrationTimeout);
 
@@ -123,7 +125,6 @@ export const configurePersistedStore: <
         effect: (_, l) => {
           clearTimeout(signalTimeout);
           l.unsubscribe();
-          persistenceOptions?.onRehydrationSuccess?.();
           resolve();
         },
       });
@@ -140,7 +141,6 @@ export const configurePersistedStore: <
         persistedStore.dispatch(REHYDRATE(storedState) as any);
       } catch (error) {
         clearTimeout(signalTimeout);
-        persistenceOptions?.onRehydrationError?.(error);
         reject(error);
       }
     });
@@ -166,9 +166,9 @@ export const configurePersistedStore: <
    * @internal
    */
   const _replaceReducer = persistedStore.replaceReducer;
-  persistedStore.replaceReducer = (nR) => {
+  persistedStore.replaceReducer = async (nR) => {
     _replaceReducer.call(persistedStore, nR);
-    rehydrate().catch((error) => {
+    await rehydrate().catch((error) => {
       if (process.env.NODE_ENV !== 'production') {
         console.error(
           'rtk-persist: Error while rehydrating state.',
@@ -178,8 +178,8 @@ export const configurePersistedStore: <
     });
   };
 
-  // Asynchronously trigger the initial rehydration on startup.
-  rehydrate().catch((error) => {
+  // Synchronously trigger the initial rehydration on startup.
+  await rehydrate().catch((error) => {
     if (process.env.NODE_ENV !== 'production') {
       console.error(
         'rtk-persist: Error while rehydrating state.',
