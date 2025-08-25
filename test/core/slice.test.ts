@@ -154,6 +154,9 @@ describe('createPersistedSlice', () => {
     });
 
     it('should fall back to initial state if persisted data is corrupted', async () => {
+      const consoleErrorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => {});
       // Arrange: Put invalid JSON into storage.
       await storage.setItem('persist:testApp-counter', '{"value": corrupted}');
       const counterSlice = createPersistedSlice({
@@ -172,6 +175,7 @@ describe('createPersistedSlice', () => {
 
       // Assert
       expect(store.getState().counter.value).toBe(0);
+      consoleErrorSpy.mockRestore();
     });
   });
 
