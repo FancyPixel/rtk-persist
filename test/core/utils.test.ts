@@ -18,7 +18,7 @@ import {
 import { StorageMock } from './mocks';
 
 // Mock the UpdatedAtHelper to isolate its functionality during tests.
-jest.mock('../src/core/updatedAtHelper', () => ({
+jest.mock('../../src/core/updatedAtHelper', () => ({
   onSave: jest.fn(),
 }));
 
