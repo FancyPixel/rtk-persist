@@ -10,7 +10,7 @@ Use this project to understand the library's features or as a sandbox for testin
 
 This example application showcases:
 
-* **Asynchronous Store Creation**: How to use `createPersistedStore` to set up the store, which returns a promise that resolves after the state is rehydrated.
+* **Asynchronous Store Creation**: How to use `configurePersistedStore` to set up the store, which returns a promise that resolves after the state is rehydrated.
 * **React Redux Integration**: The use of the `<PersistedProvider />` component to delay rendering until the store is ready, preventing UI flicker.
 * **Basic Persistence**: The `counter` slice is persisted to `localStorage`.
 

@@ -18,7 +18,7 @@ The library works by wrapping standard Redux Toolkit functions, adding persisten
 * **Nested State Support**: Easily persist slices or reducers that are deeply nested within your root state using a simple `nestedPath` option.
 * **Storage Agnostic**: Works with any storage provider that implements a simple `getItem`, `setItem`, and `removeItem` interface.
 * **TypeScript Support**: Fully typed to ensure a great developer experience with path validation.
-* **Minimal Footprint**: Extremely lightweight with a production size under 10 KB.
+* **Minimal Footprint**: Extremely lightweight with a production size under 15 KB.
 
 <br />
 
@@ -42,7 +42,7 @@ The package has a peer dependency on `@reduxjs/toolkit` and `react-redux` if you
 
 ## 🚀 Quick Start
 
-`rtk-persist` offers two ways to make your state persistent. Both require using `createPersistedStore` in your store setup.
+`rtk-persist` offers two ways to make your state persistent. Both require using `configurePersistedStore` in your store setup.
 
 ### Option 1: Using `createPersistedSlice`
 
@@ -112,18 +112,18 @@ export const counterReducer = createPersistedReducer(
 
 ### 2. Configure the Store
 
-Whichever option you choose, you must use `createPersistedStore` and provide a storage handler. The store creation is **asynchronous** and returns a promise that resolves with the rehydrated store.
+Whichever option you choose, you must use `configurePersistedStore` and provide a storage handler. The store creation is **asynchronous** and returns a promise that resolves with the rehydrated store.
 
 ```typescript
 // app/store.ts
-import { createPersistedStore } from 'rtk-persist';
+import { configurePersistedStore } from 'rtk-persist';
 import { counterSlice } from '../features/counter/counterSlice';
 // import { counterReducer } from '../features/counter/counterReducer';
 
 // For web, use localStorage or sessionStorage
 const storage = localStorage;
 
-export const store = createPersistedStore(
+export const store = configurePersistedStore(
   {
     reducer: {
       // IMPORTANT: The key must match the slice's `name` or the reducer's `name`.
@@ -163,7 +163,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { PersistedProvider } from 'rtk-persist/integrations/react-redux';
-import { store } from './state/store'; // This is the promise from createPersistedStore
+import { store } from './state/store'; // This is the promise from configurePersistedStore
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
@@ -175,7 +175,7 @@ ReactDOM.createRoot(document.getElementById('root')!).render(
 ```
 
 The `PersistedProvider` accepts two props:
-* `store`: The promise returned by `createPersistedStore`.
+* `store`: The promise returned by `configurePersistedStore`.
 * `loader` (optional): A React node to display while the store is rehydrating.
 
 ### `usePersistedStore`
@@ -255,14 +255,14 @@ export const counterSlice = createPersistedSlice(
 
 // app/store.ts
 import { combineReducers } from '@reduxjs/toolkit';
-import { createPersistedStore } from 'rtk-persist';
+import { configurePersistedStore } from 'rtk-persist';
 import { counterSlice } from '../features/counter/counterSlice';
 
 const featuresReducer = combineReducers({
   [counterSlice.name]: counterSlice.reducer,
 });
 
-export const store = createPersistedStore(
+export const store = configurePersistedStore(
   {
     reducer: {
       features: featuresReducer,
@@ -309,7 +309,7 @@ A wrapper around RTK's `createReducer` that adds persistence.
 
 ---
 
-### `createPersistedStore`
+### `configurePersistedStore`
 
 A wrapper around RTK's `configureStore`.
 
