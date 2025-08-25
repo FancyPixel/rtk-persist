@@ -1,5 +1,5 @@
 {
-  "version": "2.0.0-beta05",
+  "version": "2.0.0-rc.1",
   "license": "MIT",
   "main": "dist/index.js",
   "typings": "dist/index.d.ts",
@@ -48,6 +48,7 @@
     "@babel/plugin-transform-react-jsx": "^7.27.1",
     "@eslint/eslintrc": "^3.3.1",
     "@eslint/js": "^9.31.0",
+    "@reduxjs/toolkit": ">=2.1.0",
     "@size-limit/preset-small-lib": "^11.2.0",
     "@types/node": "^24.3.0",
     "dts-cli": "^2.0.5",
@@ -59,8 +60,7 @@
     "size-limit": "^11.2.0",
     "tslib": "^2.8.1",
     "typescript": "^5.8.3",
-    "typescript-eslint": "^8.38.0",
-    "@reduxjs/toolkit": ">=2.1.0"
+    "typescript-eslint": "^8.38.0"
   },
   "peerDependencies": {
     "@reduxjs/toolkit": ">=2.1.0"
