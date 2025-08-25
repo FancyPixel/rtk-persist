@@ -326,7 +326,6 @@ A wrapper around RTK's `configureStore`.
 * A `Promise<PersistedStore>` object, which resolves to a standard Redux store enhanced with the following methods:
     * **`rehydrate()`**: A function to manually trigger rehydration from storage.
     * **`clearPersistedState()`**: A function that clears all persisted data for the application from storage.
-    * **`flush()`**: A function that immediately persists the current state to storage.
 
 <br />
 
