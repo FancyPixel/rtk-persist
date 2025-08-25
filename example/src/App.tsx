@@ -4,16 +4,11 @@ import { useAppDispatch, useAppSelector } from './state/hooks';
 
 function App() {
   const count = useAppSelector((state) => state.counter.value);
-  const { isPaused } = useAppSelector((state) => state.status);
   const dispatch = useAppDispatch();
 
   return (
     <>
       <h1>rtk-persist Example</h1>
-      <div className="status-bar">
-        <p>Persistence Status: <strong>{isPaused ? 'Paused' : 'Active'}</strong></p>
-      </div>
-
       <div className="card">
         <h2>Counter Value: {count}</h2>
         <div className='button-group'>
