@@ -162,7 +162,7 @@ In your application's entry point (e.g., `main.tsx` or `index.js`), wrap your `A
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
-import { PersistedProvider } from 'rtk-persist/integrations/react-redux';
+import { PersistedProvider } from 'rtk-persist';
 import { store } from './state/store'; // This is the promise from configurePersistedStore
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
@@ -186,7 +186,7 @@ A custom hook that provides access to the rehydrated store instance. This is use
 
 ```tsx
 import React from 'react';
-import { usePersistedStore } from 'rtk-persist/integrations/react-redux';
+import { usePersistedStore } from 'rtk-persist';
 
 const MyComponent = () => {
   const { store } = usePersistedStore();

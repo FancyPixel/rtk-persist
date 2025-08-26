@@ -29,7 +29,7 @@ export const PersistedStoreContext = createContext<PersistedStoreContextValue>({
  * @example
  * ```tsx
  * import React from 'react';
- * import { usePersistedStore } from 'rtk-persist/integrations/react-redux';
+ * import { usePersistedStore } from 'rtk-persist';
  *
  * const MyComponent = () => {
  * const { store } = usePersistedStore();
