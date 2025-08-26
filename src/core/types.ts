@@ -186,10 +186,43 @@ export type PersistedStore<
 };
 
 /**
- * Defines configuration options for the persistence and rehydration process.
+ * Defines configuration options for the persistence and rehydration process of the store.
  * @public
  */
-export interface PersistenceOptions {
+export interface StorePersistenceOptions {
   /** The maximum time in milliseconds to wait for rehydration before timing out. Defaults to 5000. */
   rehydrationTimeout?: number;
 }
+
+/**
+ * Defines configuration options for the persistence and rehydration process of a slice.
+ * @public
+ */
+export type SlicePersistenceOptions<
+  SliceState,
+  Name extends string,
+  ReducerPath extends string = Name,
+  Nesting extends NestedPath<Name | ReducerPath> = ReducerPath,
+  SavedState = SliceState
+> = {
+  nestedPath?: Nesting;
+} & ({
+  onDump: (sliceState: SliceState) => SavedState;
+  onRehydrate: (savedState: SavedState) => SliceState;
+} | {})
+
+/**
+ * Defines configuration options for the persistence and rehydration process of a reducer.
+ * @public
+ */
+export type ReducerPersistenceOptions<
+  ReducerName extends string,
+  S extends NotFunction<any>,
+  Nesting extends NestedPath<ReducerName> = ReducerName,
+  SavedState = S
+> = {
+  nestedPath?: Nesting,
+} & ({
+  onDump: (sliceState: S) => SavedState;
+  onRehydrate: (savedState: SavedState) => S;
+} | {})

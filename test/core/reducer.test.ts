@@ -77,7 +77,9 @@ describe('createPersistedReducer', () => {
         reducerName,
         initialState,
         mapOrBuilderCallback,
-        nestedPath,
+        {
+          nestedPath,
+        },
       );
       expect(reducer.nestedPath).toBe(nestedPath);
     });

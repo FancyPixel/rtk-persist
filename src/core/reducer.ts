@@ -10,6 +10,7 @@ import {
   NestedPath,
   NotFunction,
   PersistedReducer,
+  ReducerPersistenceOptions,
   RehydrateActionPayload,
 } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
@@ -36,7 +37,7 @@ export const createPersistedReducer = <
   reducerName: ReducerName,
   initialState: S | (() => S),
   mapOrBuilderCallback: (builder: ActionReducerMapBuilder<S>) => void,
-  nestedPath?: Nesting,
+  persistenceOptions?: ReducerPersistenceOptions<ReducerName, S, Nesting>,
 ): PersistedReducer<S, ReducerName, Nesting> => {
   // Register the reducer for persistence tracking.
   Settings.subscribeSlice(reducerName);
@@ -51,7 +52,7 @@ export const createPersistedReducer = <
    * The full dot-separated path to the reducer's state within the root state object.
    * Defaults to the reducer's name if `nestedPath` is not provided.
    */
-  const finalNestedPath = (nestedPath ?? reducerName) as Nesting;
+  const finalNestedPath = (persistenceOptions?.nestedPath ?? reducerName) as Nesting;
 
   /**
    * Debounces the `writePersistedStorage` function to prevent excessive writes
@@ -63,7 +64,11 @@ export const createPersistedReducer = <
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
       const reducerState = deepGetByPath(state, finalNestedPath);
-      writePersistedStorage(reducerState, reducerName);
+      if (persistenceOptions && 'onDump' in persistenceOptions) {
+        writePersistedStorage(persistenceOptions.onDump(reducerState), reducerName);
+      } else {
+        writePersistedStorage(reducerState, reducerName);
+      }
     }, 100);
   };
 
@@ -85,7 +90,13 @@ export const createPersistedReducer = <
       (_state, action: PayloadAction<RehydrateActionPayload<ReducerName, S>>):
         | void
         | S => {
-        if (action.payload?.[reducerName]) return action.payload[reducerName];
+        if (action.payload?.[reducerName]) {
+          if (persistenceOptions && 'onRehydrate' in persistenceOptions) {
+            return persistenceOptions.onRehydrate(action.payload[reducerName]);
+          } else {
+            return action.payload[reducerName];
+          }
+        }
       },
     );
     // Wrap the builder to automatically track state changes for persistence.

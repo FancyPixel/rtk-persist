@@ -116,7 +116,9 @@ describe('configurePersistedStore', () => {
             state.value += 1;
           });
         },
-        '', // Empty string signifies a root reducer.
+        {
+          nestedPath: '', // Empty string signifies a root reducer.
+        },
       );
 
       // Act
@@ -212,7 +214,7 @@ describe('configurePersistedStore', () => {
 
       const sliceA = createPersistedSlice(
         { name: 'sliceA', initialState: { value: 'a' }, reducers: {} },
-        'level1.level2.sliceA',
+        { nestedPath: 'level1.level2.sliceA' },
       );
 
       // This should compile without errors.

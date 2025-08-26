@@ -201,7 +201,9 @@ describe('createPersistedSlice', () => {
             },
           },
         },
-        'nested.sliceB',
+        {
+          nestedPath: 'nested.sliceB',
+        },
       );
       const nestedReducer = combineReducers({ [sliceB.name]: sliceB.reducer });
       const store = await configurePersistedStore(

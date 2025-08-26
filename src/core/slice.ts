@@ -8,7 +8,7 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { NestedPath, PersistedSlice, RehydrateActionPayload } from './types';
+import { NestedPath, PersistedSlice, RehydrateActionPayload, SlicePersistenceOptions } from './types';
 import UpdatedAtHelper from './updatedAtHelper';
 import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
 
@@ -43,7 +43,7 @@ export const createPersistedSlice = <
     ReducerPath,
     PersistedSelectors
   >,
-  nestedPath?: Nesting,
+  persistenceOptions?: SlicePersistenceOptions<SliceState, Name, ReducerPath, Nesting>,
 ): PersistedSlice<
   SliceState,
   PCR,
@@ -64,7 +64,7 @@ export const createPersistedSlice = <
   /**
    * The full dot-separated path to the slice's state within the root state object.
    */
-  const finalNestedPath = (nestedPath ??
+  const finalNestedPath = (persistenceOptions?.nestedPath ??
     sliceOptions.reducerPath ??
     sliceOptions.name) as Nesting;
 
@@ -78,7 +78,11 @@ export const createPersistedSlice = <
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
       const sliceState = deepGetByPath(state, finalNestedPath);
-      writePersistedStorage(sliceState, sliceOptions.name);
+      if (persistenceOptions && 'onDump' in persistenceOptions) {
+        writePersistedStorage(persistenceOptions.onDump(sliceState), sliceOptions.name);
+      } else {
+        writePersistedStorage(sliceState, sliceOptions.name);
+      }
     }, 100);
   };
 
@@ -103,8 +107,13 @@ export const createPersistedSlice = <
           _state,
           action: PayloadAction<RehydrateActionPayload<Name, SliceState>>,
         ): void | SliceState => {
-          if (action.payload?.[sliceOptions.name])
-            return action.payload[sliceOptions.name];
+          if (action.payload?.[sliceOptions.name]) {
+            if (persistenceOptions && 'onRehydrate' in persistenceOptions) {
+              return persistenceOptions.onRehydrate(action.payload[sliceOptions.name]);
+            } else {
+              return action.payload[sliceOptions.name];
+            }
+          }
         },
       );
       // Wrap the builder to automatically track state changes for persistence.
