@@ -1,6 +1,12 @@
-# rtk-persist
+<br />
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+<div align="center">
+<img src="./assets/logo.png" height="128px" alt="rtk-persist logo" />
+</div>
+
+<br />
+
+# rtk-persist [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT) ![GitHub package.json version](https://img.shields.io/github/package-json/v/FancyPixel/rtk-persist?color=%2332C553)
 
 **`rtk-persist`** is a lightweight, zero-dependency library that enhances Redux Toolkit's state management by adding seamless, persistent storage. It allows specified slices or reducers of your Redux state to be saved to a storage medium of your choice (like `localStorage` or `AsyncStorage`) and rehydrated on app startup.
 
@@ -341,3 +347,4 @@ This library was crafted from our daily experiences building modern web and mobi
 
 This project is licensed under the MIT License.
             
+Library icon freely created from a [iconsax](https://iconsax.io/) icon and the [redux](https://redux.js.org/img/redux.svg) logo.
