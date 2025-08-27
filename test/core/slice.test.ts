@@ -5,6 +5,7 @@
  */
 
 import { combineReducers, createAction, PayloadAction } from '@reduxjs/toolkit';
+import { listenerMiddleware } from '../../src/core/middleware';
 import { TestSettings } from '../../src/core/settings';
 import { createPersistedSlice } from '../../src/core/slice';
 import { configurePersistedStore } from '../../src/core/store';
@@ -17,6 +18,7 @@ describe('createPersistedSlice', () => {
   beforeEach(() => {
     // Set up a fresh mock storage and use fake timers for debounce control.
     storage = new StorageMock();
+    listenerMiddleware.clearListeners();
     TestSettings.restoreDefaults();
     jest.useFakeTimers();
   });
@@ -322,6 +324,134 @@ describe('createPersistedSlice', () => {
       expect(store.getState().shape).toEqual({
         value: 10,
         extra: 'field',
+      });
+    });
+  });
+
+  describe('Persistence Options (onPersist/onRehydrate)', () => {
+    it('should use onPersist to transform state before persisting', async () => {
+      // Arrange: onPersist will omit the 'sensitive' field.
+      const slice = createPersistedSlice(
+        {
+          name: 'secure',
+          initialState: { sensitive: 'secret', safe: 'public' },
+          reducers: {
+            update: (state) => {
+              state.sensitive = 'new-secret';
+              state.safe = 'new-public';
+            },
+          },
+        },
+        {
+          onPersist: (state) => ({ safe: state.safe }), // Only persist the 'safe' field
+          onRehydrate: (savedState) => ({ safe: savedState.safe, sensitive: 'secret' })
+        },
+      );
+      const store = await configurePersistedStore(
+        { reducer: { [slice.name]: slice.reducer } },
+        'testApp',
+        storage,
+      );
+      await flushTimersAndPromises();
+
+      // Act
+      store.dispatch(slice.actions.update());
+      await flushTimersAndPromises();
+
+      // Assert: The stored data should be transformed.
+      const persistedState = await storage.getItem('persist:testApp-secure');
+      const parsed = JSON.parse(persistedState!);
+      expect(parsed.safe).toBe('new-public');
+      expect(parsed.sensitive).toBeUndefined();
+    });
+
+    it('should use onRehydrate to transform state on startup', async () => {
+      // Arrange: Pre-seed storage with a legacy data format.
+      await storage.setItem('persist:testApp-legacy', '{"v1_data": 42}');
+      const slice = createPersistedSlice(
+        {
+          name: 'legacy',
+          initialState: { version: 2, data: 0 },
+          reducers: {},
+        },
+        {
+          onPersist: (state) => ({
+            v1_data: state.data,
+          }),
+          onRehydrate: (savedState) => ({
+            version: 2, // Add new field
+            data: savedState.v1_data, // Map old field to new field
+          }),
+        },
+      );
+
+      // Act: Configure the store to trigger rehydration.
+      const store = await configurePersistedStore(
+        { reducer: { [slice.name]: slice.reducer } },
+        'testApp',
+        storage,
+      );
+      await flushTimersAndPromises();
+
+      // Assert: The state should be correctly transformed.
+      expect(store.getState().legacy).toEqual({ version: 2, data: 42 });
+    });
+
+    it('should correctly perform a round-trip with onPersist and onRehydrate', async () => {
+      // Arrange: Use onPersist to minify state and onRehydrate to expand it.
+      type SliceState = { user: string; lastLogin: number };
+      type SavedState = { u: string; l: number };
+
+      const slice = createPersistedSlice(
+        {
+          name: 'minified',
+          initialState: { user: '', lastLogin: 0 } as SliceState,
+          reducers: {
+            login: (state, action: PayloadAction<SliceState>) => {
+              state.user = action.payload.user;
+              state.lastLogin = action.payload.lastLogin;
+            },
+          },
+        },
+        {
+          onPersist: (state: SliceState): SavedState => ({
+            u: state.user,
+            l: state.lastLogin,
+          }),
+          onRehydrate: (saved: SavedState): SliceState => ({
+            user: saved.u,
+            lastLogin: saved.l,
+          }),
+        },
+      );
+
+      // --- Part 1: Persist the data ---
+      const store1 = await configurePersistedStore(
+        { reducer: { [slice.name]: slice.reducer } },
+        'testApp',
+        storage,
+      );
+      store1.dispatch(slice.actions.login({ user: 'test', lastLogin: 123 }));
+      await flushTimersAndPromises();
+
+      // Assert that the minified version was stored.
+      const persisted = await storage.getItem('persist:testApp-minified');
+      expect(JSON.parse(persisted!)).toEqual({ u: 'test', l: 123 });
+
+      // --- Part 2: Rehydrate the data ---
+      TestSettings.restoreDefaults(); // Reset settings for a clean startup
+      TestSettings.subscribeSlice(slice.name);
+      const store2 = await configurePersistedStore(
+        { reducer: { [slice.name]: slice.reducer } },
+        'testApp',
+        storage,
+      );
+      await flushTimersAndPromises();
+
+      // Assert that the state was correctly expanded upon rehydration.
+      expect(store2.getState().minified).toEqual({
+        user: 'test',
+        lastLogin: 123,
       });
     });
   });
