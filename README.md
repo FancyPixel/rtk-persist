@@ -42,16 +42,14 @@ The library works by wrapping standard Redux Toolkit functions, adding persisten
 
 You can install `rtk-persist` using either `yarn` or `npm`:
 
-```
+```bash
 yarn add rtk-persist
-
 ```
 
 or
 
-```
+```bash
 npm install --save rtk-persist
-
 ```
 
 The package has a peer dependency on `@reduxjs/toolkit` and `react-redux` if you use the React integration.
@@ -70,7 +68,7 @@ This approach is best if you prefer the `createSlice` API from Redux Toolkit.
 
 Replace `createSlice` with `createPersistedSlice`. The function accepts the same options.
 
-```
+```typescript
 // features/counter/counterSlice.ts
 import { createPersistedSlice } from 'rtk-persist';
 import { PayloadAction } from '@reduxjs/toolkit';
@@ -106,7 +104,7 @@ This approach is ideal if you prefer the `createReducer` builder syntax.
 
 Use `createPersistedReducer` and define your case reducers using the builder callback.
 
-```
+```typescript
 // features/counter/counterReducer.ts
 import { createPersistedReducer } from 'rtk-persist';
 import { createAction } from '@reduxjs/toolkit';
@@ -134,7 +132,7 @@ export const counterReducer = createPersistedReducer(
 
 Whichever option you choose, you must use `configurePersistedStore` and provide a storage handler. The store creation is **asynchronous** and returns a promise that resolves with the rehydrated store.
 
-```
+```typescript
 // app/store.ts
 import { configurePersistedStore } from 'rtk-persist';
 import { counterSlice } from '../features/counter/counterSlice';
@@ -178,7 +176,7 @@ This component replaces the standard `Provider` from `react-redux`. It waits for
 
 In your application's entry point (e.g., `main.tsx` or `index.js`), wrap your `App` component with `PersistedProvider`.
 
-```
+```typescript
 // main.tsx
 import React from 'react';
 import ReactDOM from 'react-dom/client';
@@ -208,7 +206,7 @@ A custom hook that provides access to the rehydrated store instance. This is use
 
 #### Usage
 
-```
+```typescript
 import React from 'react';
 import { usePersistedStore } from 'rtk-persist';
 
@@ -237,7 +235,7 @@ The `nestedPath` is a dot-notation string representing the path from the root of
 
 Imagine your state is structured like `{ features: { counter: { value: 0 } } }`. Here's how you would configure the counter slice:
 
-```
+```typescript
 // features/counter/counterSlice.ts
 export const counterSlice = createPersistedSlice(
   {
@@ -285,7 +283,7 @@ Sometimes, you may need to transform a slice's state before it's saved to storag
 
 Here's how you can persist a slice that contains a non-serializable value like a `Date` object.
 
-```
+```typescript
 // features/session/sessionSlice.ts
 import { createPersistedSlice } from 'rtk-persist';
 
