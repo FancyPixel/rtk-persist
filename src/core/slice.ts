@@ -8,7 +8,12 @@ import {
 import { Builder } from './extraReducersBuilder';
 import { listenerMiddleware } from './middleware';
 import Settings from './settings';
-import { NestedPath, PersistedSlice, RehydrateActionPayload } from './types';
+import {
+  NestedPath,
+  PersistedSlice,
+  RehydrateActionPayload,
+  SlicePersistenceOptions,
+} from './types';
 import UpdatedAtHelper from './updatedAtHelper';
 import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
 
@@ -19,17 +24,48 @@ import { deepGetByPath, REHYDRATE, writePersistedStorage } from './utils';
  *
  * This function must be used with a store configured by `configurePersistedStore`.
  *
- * @param sliceOptions - The standard `CreateSliceOptions` object from Redux Toolkit.
- * @param nestedPath - An optional dot-separated string path indicating where the
- * slice's state is located within the root state. If not provided, `reducerPath`
- * or `name` from `sliceOptions` is used.
- * @returns A Redux slice object with persistence enabled, augmented with a
- * `nestedPath` property for state tracking.
- *
  * @public
+ * @param sliceOptions - The standard `CreateSliceOptions` object from Redux Toolkit.
+ * @param persistenceOptions - Optional configuration for persistence behavior.
+ * @param persistenceOptions.nestedPath - A dot-separated string path indicating where the
+ * slice's state is located within the root state. If not provided, it defaults to
+ * `reducerPath` or `name` from `sliceOptions`.
+ * @param persistenceOptions.onPersist - A function that transforms the slice's state
+ * *before* it is saved to storage. This is useful for saving a different version of the state
+ * than what is used in the application.
+ * @param persistenceOptions.onRehydrate - A function that transforms the state *after* it is
+ * loaded from storage but *before* it is placed in the Redux store. This is useful for
+ * migrating old state shapes or re-instantiating complex objects.
+ * @returns A Redux slice object with persistence enabled, augmented with a
+ * `nestedPath` property for internal state tracking.
+ *
+ * @example
+ * // Basic usage
+ * const counterSlice = createPersistedSlice({
+ * name: 'counter',
+ * initialState: { value: 0 },
+ * reducers: {
+ * increment: (state) => {
+ * state.value += 1;
+ * },
+ * },
+ * });
+ *
+ * // Usage with persistence options
+ * const userSlice = createPersistedSlice({
+ * name: 'user',
+ * initialState: { data: null, loadedAt: null },
+ * reducers: {
+ * // ...
+ * },
+ * }, {
+ * onRehydrate: (savedState) => ({ ...savedState, loadedAt: new Date() }),
+ * onPersist: (state) => ({ data: state.data }), // Only persist the 'data' field
+ * });
  */
 export const createPersistedSlice = <
   SliceState,
+  SavedState,
   Name extends string,
   PCR extends SliceCaseReducers<SliceState>,
   ReducerPath extends string = Name,
@@ -43,7 +79,13 @@ export const createPersistedSlice = <
     ReducerPath,
     PersistedSelectors
   >,
-  nestedPath?: Nesting,
+  persistenceOptions?: SlicePersistenceOptions<
+    SliceState,
+    SavedState,
+    Name,
+    ReducerPath,
+    Nesting
+  >,
 ): PersistedSlice<
   SliceState,
   PCR,
@@ -63,8 +105,9 @@ export const createPersistedSlice = <
 
   /**
    * The full dot-separated path to the slice's state within the root state object.
+   * @internal
    */
-  const finalNestedPath = (nestedPath ??
+  const finalNestedPath = (persistenceOptions?.nestedPath ??
     sliceOptions.reducerPath ??
     sliceOptions.name) as Nesting;
 
@@ -78,7 +121,20 @@ export const createPersistedSlice = <
     if (debounceTimeout) clearTimeout(debounceTimeout);
     debounceTimeout = setTimeout(() => {
       const sliceState = deepGetByPath(state, finalNestedPath);
-      writePersistedStorage(sliceState, sliceOptions.name);
+      if (sliceState === null) {
+        if (process.env.NODE_ENV !== 'production') {
+          console.error(`DUMP: No state found for ${sliceOptions.name}, check if the nestedPath is corrected.`);
+        }
+      } else {
+        if (persistenceOptions && 'onPersist' in persistenceOptions) {
+          writePersistedStorage(
+            persistenceOptions.onPersist(sliceState),
+            sliceOptions.name,
+          );
+        } else {
+          writePersistedStorage(sliceState, sliceOptions.name);
+        }
+      }
     }, 100);
   };
 
@@ -101,10 +157,19 @@ export const createPersistedSlice = <
         REHYDRATE.toString(),
         (
           _state,
-          action: PayloadAction<RehydrateActionPayload<Name, SliceState>>,
+          action: PayloadAction<
+            RehydrateActionPayload<Name, SliceState | SavedState>
+          >,
         ): void | SliceState => {
-          if (action.payload?.[sliceOptions.name])
-            return action.payload[sliceOptions.name];
+          if (action.payload?.[sliceOptions.name]) {
+            if (persistenceOptions && 'onRehydrate' in persistenceOptions) {
+              return persistenceOptions.onRehydrate(
+                action.payload[sliceOptions.name] as SavedState,
+              );
+            } else {
+              return action.payload[sliceOptions.name] as SliceState;
+            }
+          }
         },
       );
       // Wrap the builder to automatically track state changes for persistence.

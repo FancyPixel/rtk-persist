@@ -15,8 +15,8 @@ import {
   ExtractDispatchExtensions,
   Middlewares,
   PersistedStore,
-  PersistenceOptions,
   StorageHandler,
+  StorePersistenceOptions,
   ThunkMiddlewareFor,
 } from './types';
 import { clearPersistedStorage, getStoredState, REHYDRATE } from './utils';
@@ -64,7 +64,7 @@ export const configurePersistedStore: <
   options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>,
   applicationId: string,
   storageHandler: StorageHandler,
-  persistenceOptions?: PersistenceOptions,
+  persistenceOptions?: StorePersistenceOptions,
 ) => Promise<PersistedStore<S, A, M, E>> = async <
   S extends Record<string, unknown> = any,
   A extends Action = UnknownAction,
@@ -82,7 +82,7 @@ export const configurePersistedStore: <
   options: ConfigureStoreOptions<S, A, Tuple<Middlewares<S>>, E, P>,
   applicationId: string,
   storageHandler: StorageHandler,
-  persistenceOptions: PersistenceOptions = {
+  persistenceOptions: StorePersistenceOptions = {
     rehydrationTimeout: 5000,
   },
 ) => {

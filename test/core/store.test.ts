@@ -5,6 +5,7 @@
  */
 
 import { createAction } from '@reduxjs/toolkit';
+import { listenerMiddleware } from '../../src/core/middleware';
 import { createPersistedReducer } from '../../src/core/reducer';
 import { TestSettings } from '../../src/core/settings';
 import { createPersistedSlice } from '../../src/core/slice';
@@ -19,6 +20,7 @@ describe('configurePersistedStore', () => {
   beforeEach(() => {
     // Set up a fresh mock storage for each test and use fake timers.
     storage = new StorageMock();
+    listenerMiddleware.clearListeners();
     TestSettings.restoreDefaults();
     jest.useFakeTimers();
   });
@@ -116,7 +118,9 @@ describe('configurePersistedStore', () => {
             state.value += 1;
           });
         },
-        '', // Empty string signifies a root reducer.
+        {
+          nestedPath: '', // Empty string signifies a root reducer.
+        },
       );
 
       // Act
@@ -212,7 +216,7 @@ describe('configurePersistedStore', () => {
 
       const sliceA = createPersistedSlice(
         { name: 'sliceA', initialState: { value: 'a' }, reducers: {} },
-        'level1.level2.sliceA',
+        { nestedPath: 'level1.level2.sliceA' },
       );
 
       // This should compile without errors.

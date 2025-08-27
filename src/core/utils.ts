@@ -101,7 +101,7 @@ export const deepGet = <Name extends string = string>(
   for (const key of keys) {
     // If at any point the path leads to a non-object (and is not the end of the path),
     // we cannot go deeper, so the path is considered invalid.
-    if (typeof current !== 'object' || current === null) {
+    if (typeof current !== 'object' || current === null || !(key in current)) {
       return null;
     }
     current = current[key];
